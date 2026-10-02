@@ -16,3 +16,44 @@
   font-size: 13px;
   color: #203c35;
 }
+
+/* 現在地ボタンとメッセージ */
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.location-button {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 999px;
+  background: #185239;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.location-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.location-button:focus-visible {
+  outline: 3px solid #a05c18;
+  outline-offset: 2px;
+}
+
+.location-message {
+  flex: 1 1 200px;
+  font-size: 13px;
+  color: #52685d;
+}
+
+.location-message.error {
+  color: #a3261b;
+}
