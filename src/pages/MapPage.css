@@ -1,0 +1,18 @@
+/* 地図画面（MapPage）専用のスタイル */
+.map-view {
+  /* Leaflet の部品が画面下の共通バーより手前に出ないようにする */
+  position: relative;
+  z-index: 0;
+  height: 60vh;
+  min-height: 320px;
+  border-radius: 20px;
+  border: 1px solid #d5e0d5;
+  overflow: hidden;
+  background: #eaf0e8;
+}
+
+.spot-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: #203c35;
+}
