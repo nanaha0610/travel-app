@@ -1,7 +1,7 @@
 # Travel App
 
 友人と作る旅行サービスの最小限の土台です。React + Vite + JavaScript を使います。
-トップページを備えた、共同開発用のスターターです。
+動画一覧・撮影・地図・マイページの4画面と下部ナビゲーションを備えた共同開発用スターターです。撮影・投稿・地図・ログイン機能は未実装です。
 
 ## 最初の準備（各自1回）
 
@@ -29,13 +29,13 @@ PowerShell で npm.ps1 の実行エラーが出る場合は、`npm.cmd ci`、`np
 
 | ファイル | 役割 |
 | --- | --- |
-| src/pages/HomePage.jsx | トップページの文章と構成 |
+| src/pages/ 内の各ページ | 4画面の文章と構成 |
 | src/index.css | 色・余白などの見た目 |
 | src/App.jsx | ページを組み合わせる場所 |
 | src/main.jsx | React の起動処理（普段は編集不要） |
 | index.html | React を表示する入口（文章は HomePage.jsx で編集） |
 
-たとえば HomePage.jsx の見出しを変えて Ctrl + S で保存すると、開発中の画面に反映されます。
+たとえば FeedPage.jsx の見出しを変えて Ctrl + S で保存すると、開発中の画面に反映されます。
 JSX は HTML に似ていますが、class は className、br は <br /> と書きます。
 
 ## チームで作業する手順
@@ -54,7 +54,7 @@ git switch -c edit-home-taro
 ```sh
 npm run build
 git status
-git add src/pages/HomePage.jsx
+git add src/pages/FeedPage.jsx
 git commit -m "トップページの見出しを変更"
 git push -u origin edit-home-taro
 ```
@@ -82,3 +82,17 @@ npm run preview
 
 build は dist に公開用ファイルを作ります。preview はそのローカル確認です。
 GitHub への push だけではサイトは公開されません。ホスティングの設定は別途行います。
+
+## 4画面の担当ファイル
+
+- 動画一覧：src/pages/FeedPage.jsx
+- 撮影：src/pages/CreatePage.jsx
+- 地図：src/pages/MapPage.jsx
+- マイページ：src/pages/ProfilePage.jsx
+- 共通の下部バー：src/components/BottomNav.jsx
+- 共通のページ枠：src/components/PageShell.jsx
+- 画面の切り替え：src/App.jsx（#feed / #create / #map / #profile）
+
+ブラウザの戻る・進む、各画面での再読み込みにも対応しています。
+以前の HomePage.jsx は参考用に残していますが、現在の画面からは使用していません。
+共通ファイルを変更する場合は、先にチームで相談してください。
