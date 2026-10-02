@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AuthProvider } from './auth/AuthProvider.jsx';
 import BottomNav, { tabs } from './components/BottomNav.jsx';
 import FeedPage from './pages/FeedPage.jsx';
 import CreatePage from './pages/CreatePage.jsx';
@@ -29,10 +30,12 @@ export default function App() {
 
   const Page = pages[current];
   return (
-    <div className="app-shell">
-      <header className="app-header"><a href="#feed">Travel App</a><span>旅のはじまり</span></header>
-      <main ref={mainRef} tabIndex={-1}><Page /></main>
-      <BottomNav current={current} />
-    </div>
+    <AuthProvider>
+      <div className="app-shell">
+        <header className="app-header"><a href="#feed">Travel App</a><span>旅のはじまり</span></header>
+        <main ref={mainRef} tabIndex={-1}><Page /></main>
+        <BottomNav current={current} />
+      </div>
+    </AuthProvider>
   );
 }
