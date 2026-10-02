@@ -1,0 +1,16 @@
+/* ログインフォーム専用のスタイル。クラス名は login- で始める */
+.login-panel { padding: 24px 20px; border-radius: 20px; background: #eaf0e8; }
+.login-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 20px; border-radius: 12px; background: #d9e4da; }
+.login-tabs button { min-height: 40px; border: none; border-radius: 9px; background: transparent; color: #52685d; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.login-tabs button[aria-pressed="true"] { background: #fff; color: #185239; }
+.login-notice { margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; background: #fff6e8; color: #7a4a12; font-size: 13px; }
+.login-form { display: flex; flex-direction: column; gap: 14px; }
+.login-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; }
+.login-form input { min-height: 46px; padding: 0 12px; border: 1px solid #c9d6cc; border-radius: 10px; background: #fff; color: #203c35; font: inherit; font-size: 16px; }
+.login-form input:focus-visible { outline: 3px solid #a05c18; outline-offset: 1px; }
+.login-hint { font-size: 12px; font-weight: 400; color: #52685d; }
+.login-error { padding: 10px 12px; border-radius: 10px; background: #fdecea; color: #9b2c1f; font-size: 13px; }
+.login-submit { min-height: 48px; margin-top: 4px; border: none; border-radius: 12px; background: #185239; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.login-submit:hover { background: #134330; }
+.login-submit:disabled { opacity: 0.6; cursor: wait; }
+.login-tabs button:focus-visible, .login-submit:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }

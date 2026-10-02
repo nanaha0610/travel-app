@@ -1,0 +1,68 @@
+/* マイページ専用のスタイル。クラス名は mypage- で始めて、他の画面とぶつからないようにする */
+
+.mypage-profile { display: flex; align-items: center; gap: 16px; }
+.mypage-avatar {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: #234a3d; color: #fff; font-size: 30px; font-weight: 800;
+}
+.mypage-profile-text { min-width: 0; }
+.mypage-profile-text h2 { margin: 0 0 2px; font-size: 20px; overflow-wrap: anywhere; }
+.mypage-profile-text p { color: #52685d; font-size: 13px; overflow-wrap: anywhere; }
+
+.mypage-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  margin: 24px 0 16px; padding: 12px 0;
+  border-top: 1px solid #dce5de; border-bottom: 1px solid #dce5de; text-align: center;
+}
+.mypage-stats div + div { border-left: 1px solid #dce5de; }
+.mypage-stats dt { font-size: 12px; color: #52685d; }
+.mypage-stats dd { margin: 0; font-size: 22px; font-weight: 800; }
+
+.mypage-actions { display: flex; gap: 8px; }
+.mypage-button {
+  flex: 1; min-height: 44px; padding: 0 16px;
+  border: 1px solid #c9d6cc; border-radius: 10px; background: #fff; color: #203c35;
+  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.mypage-button:hover { background: #f0f4ed; }
+.mypage-button:disabled { opacity: 0.6; cursor: wait; }
+.mypage-button-primary { flex: none; border-color: #185239; background: #185239; color: #fff; }
+.mypage-button-primary:hover { background: #134330; }
+.mypage-button:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }
+.mypage-notice { min-height: 1.7em; margin-top: 8px; font-size: 13px; color: #52685d; }
+
+.mypage-trips > h2 { margin: 16px 0 12px; }
+
+.mypage-new-trip { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.mypage-new-trip label { font-size: 13px; font-weight: 700; }
+.mypage-new-trip div { display: flex; gap: 8px; }
+.mypage-new-trip input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 12px;
+  border: 1px solid #c9d6cc; border-radius: 10px; background: #fff; color: #203c35;
+  font: inherit; font-size: 16px;
+}
+.mypage-new-trip input:focus-visible { outline: 3px solid #a05c18; outline-offset: 1px; }
+
+.mypage-trip { padding: 16px 0; border-top: 1px solid #dce5de; }
+.mypage-trip-header h3 { margin: 0; font-size: 17px; overflow-wrap: anywhere; }
+.mypage-trip-header p { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #52685d; }
+.mypage-status { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.mypage-status-draft { background: #eef1ec; color: #52685d; }
+.mypage-status-published { background: #dcefe2; color: #185239; }
+.mypage-trip-empty {
+  margin-top: 10px; padding: 14px; border: 1px dashed #b9cbbf; border-radius: 12px;
+  color: #52685d; font-size: 13px; text-align: center;
+}
+
+.mypage-panel {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 28px 20px; border-radius: 20px; background: #eaf0e8; text-align: center;
+}
+.mypage-panel h2, .mypage-panel h3 { margin: 0; }
+.mypage-panel p { color: #52685d; font-size: 14px; }
+.mypage-panel code { padding: 0 4px; border-radius: 4px; background: #fff; font-size: 13px; }
+.mypage-panel .mypage-button { flex: none; }
+.mypage-loading { padding: 20px 0; color: #52685d; font-size: 14px; text-align: center; }
+.mypage-error { color: #9b2c1f; font-size: 13px; }
+.mypage-panel .mypage-error { color: #9b2c1f; }
