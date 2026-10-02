@@ -215,3 +215,85 @@
   color: #52685d;
   text-align: center;
 }
+
+/* ルート沿いの飲食店 */
+.restaurant-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #52685d;
+}
+
+.restaurant-status.error {
+  color: #a3261b;
+}
+
+.restaurant-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #203c35;
+}
+
+.restaurant-dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e8590c;
+  box-shadow: 0 0 0 1px #e8590c;
+}
+
+.restaurant-status .text-button {
+  margin-top: 0;
+}
+
+/* 飲食店の吹き出し */
+.restaurant-popup {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.restaurant-popup strong {
+  display: block;
+  font-size: 15px;
+  color: #203c35;
+}
+
+.restaurant-popup p {
+  margin: 2px 0;
+}
+
+.restaurant-kind {
+  color: #e8590c;
+  font-weight: 700;
+}
+
+.restaurant-popup dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 6px 0;
+}
+
+.restaurant-popup dt {
+  color: #52685d;
+}
+
+.restaurant-popup dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.restaurant-links a {
+  margin-right: 8px;
+}
+
+.restaurant-note {
+  font-size: 11px;
+  color: #52685d;
+}

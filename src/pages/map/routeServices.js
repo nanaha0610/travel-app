@@ -20,10 +20,10 @@ const routingProfiles = {
 export class MapServiceError extends Error {}
 
 // ---- 1秒に1回までに抑える仕組み ----
-const lastRequestTime = { search: 0, route: 0 };
+const lastRequestTime = { search: 0, route: 0, restaurants: 0 };
 const MIN_INTERVAL_MS = 1100; // 余裕をもって1.1秒
 
-async function waitForTurn(service) {
+export async function waitForTurn(service) {
   const waitMs = lastRequestTime[service] + MIN_INTERVAL_MS - Date.now();
   if (waitMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, waitMs));
@@ -31,10 +31,10 @@ async function waitForTurn(service) {
   lastRequestTime[service] = Date.now();
 }
 
-async function fetchJson(url) {
+export async function fetchJson(url, options) {
   let response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, options);
   } catch {
     throw new MapServiceError('通信できませんでした。インターネット接続を確認してください。');
   }
