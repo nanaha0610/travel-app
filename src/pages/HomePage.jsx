@@ -1,12 +1,11 @@
 export default function HomePage() {
   return (
     <>
-<header className="header">
-    <a className="logo" href="index.html">Travel App</a>
+<header id="home" className="header">
+    <a className="logo" href="#home">Travel App</a>
     <a href="#ideas">旅のアイデア</a>
   </header>
   <main>
-    {/* まずはタイトルや説明文を変えてみよう */}
     <section className="hero">
       <p className="eyebrow">みんなでつくる旅行サービス</p>
       <h1>次の旅を、<br />みんなで。</h1>
