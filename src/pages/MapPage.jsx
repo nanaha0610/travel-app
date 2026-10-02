@@ -12,6 +12,7 @@ import {
   formatDuration,
   searchPlaces,
 } from './map/routeServices.js';
+import { fetchRestaurantsAlongRoute } from './map/restaurantService.js';
 import './MapPage.css';
 
 // 動作確認用の仮のサンプルスポットです。
@@ -70,6 +71,69 @@ function getCurrentPosition() {
   });
 }
 
+// 外部から来た文字（店名・地名）を、HTML として解釈させずに表示するための部品
+// （文字をそのまま渡すと、悪意のある名前が登録されていた場合にプログラムとして動いてしまう）
+function textElement(text) {
+  const span = document.createElement('span');
+  span.textContent = text;
+  return span;
+}
+
+// 飲食店のピンを押したときの吹き出しの中身を作る
+// （お店の情報は外部のデータなので、innerHTML は使わず文字として安全に入れる）
+function createRestaurantPopup(restaurant) {
+  const box = document.createElement('div');
+  box.className = 'restaurant-popup';
+
+  const title = document.createElement('strong');
+  title.textContent = restaurant.name;
+  box.append(title);
+
+  const kind = document.createElement('p');
+  kind.className = 'restaurant-kind';
+  kind.textContent = [restaurant.kind, restaurant.cuisine].filter(Boolean).join('／');
+  box.append(kind);
+
+  const rows = [
+    ['営業時間', restaurant.openingHours],
+    ['住所', restaurant.address],
+    ['電話', restaurant.phone],
+  ];
+  const list = document.createElement('dl');
+  rows.filter(([, value]) => value).forEach(([label, value]) => {
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    list.append(dt, dd);
+  });
+  if (list.childElementCount > 0) box.append(list);
+
+  const links = document.createElement('p');
+  links.className = 'restaurant-links';
+  if (restaurant.website) {
+    const site = document.createElement('a');
+    site.href = restaurant.website;
+    site.target = '_blank';
+    site.rel = 'noreferrer';
+    site.textContent = 'Webサイト';
+    links.append(site, ' ');
+  }
+  const osm = document.createElement('a');
+  osm.href = restaurant.osmUrl;
+  osm.target = '_blank';
+  osm.rel = 'noreferrer';
+  osm.textContent = 'OpenStreetMapで見る';
+  links.append(osm);
+  box.append(links);
+
+  const note = document.createElement('p');
+  note.className = 'restaurant-note';
+  note.textContent = '情報は古い場合があります。';
+  box.append(note);
+  return box;
+}
+
 function errorText(error) {
   return error instanceof MapServiceError ? error.message : '予期しないエラーが起きました。もう一度お試しください。';
 }
@@ -79,6 +143,7 @@ export default function MapPage() {
   const mapRef = useRef(null); // 作成した地図を保存しておく場所
   const locationLayerRef = useRef(null); // 現在地の点と誤差の円
   const routeLayerRef = useRef(null); // ルートの線と目的地のピン
+  const restaurantLayerRef = useRef(null); // ルート沿いの飲食店のピン
   const routeRequestRef = useRef(0); // 古いルート結果で上書きしないための番号
 
   const [location, setLocation] = useState({ status: 'idle', message: '' });
@@ -87,6 +152,8 @@ export default function MapPage() {
   const [mode, setMode] = useState('foot');
   const [destination, setDestination] = useState(null);
   const [route, setRoute] = useState({ status: 'idle', message: '', summary: null });
+  const [restaurants, setRestaurants] = useState({ status: 'idle', message: '', count: 0 });
+  const [showRestaurants, setShowRestaurants] = useState(true);
 
   useEffect(() => {
     // 地図を作成
@@ -94,6 +161,7 @@ export default function MapPage() {
     mapRef.current = map;
     locationLayerRef.current = L.layerGroup().addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
+    restaurantLayerRef.current = L.layerGroup().addTo(map);
 
     // OpenStreetMap の地図画像（出典表示は利用条件なので消さないこと）
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -121,6 +189,7 @@ export default function MapPage() {
       mapRef.current = null;
       locationLayerRef.current = null;
       routeLayerRef.current = null;
+      restaurantLayerRef.current = null;
     };
   }, []);
 
@@ -207,7 +276,7 @@ export default function MapPage() {
         opacity: 0.85,
       }).addTo(layer);
       L.marker([place.lat, place.lng], { icon: spotIcon, alt: place.name })
-        .bindTooltip(place.name, { permanent: true, direction: 'top', className: 'spot-label destination-label' })
+        .bindTooltip(textElement(place.name), { permanent: true, direction: 'top', className: 'spot-label destination-label' })
         .addTo(layer);
       mapRef.current.fitBounds(line.getBounds(), { padding: [40, 40] });
 
@@ -217,10 +286,56 @@ export default function MapPage() {
         message: '',
         summary: `${modeLabel} ${formatDistance(result.distance)}・${formatDuration(result.duration)}`,
       });
+
+      await showRestaurantsAlongRoute(result, travelMode, isLatest);
     } catch (error) {
       if (!isLatest()) return;
       setRoute({ status: 'error', message: errorText(error), summary: null });
     }
+  }
+
+  // ルート沿いの飲食店にピンを立てる
+  async function showRestaurantsAlongRoute(result, travelMode, isLatest) {
+    restaurantLayerRef.current?.clearLayers();
+    setRestaurants({ status: 'loading', message: '近くの飲食店を探しています…', count: 0 });
+    try {
+      const found = await fetchRestaurantsAlongRoute(result.path, result.distance, travelMode);
+      if (!isLatest()) return;
+      const layer = restaurantLayerRef.current;
+      found.forEach((restaurant) => {
+        L.circleMarker([restaurant.lat, restaurant.lng], {
+          radius: 9,
+          color: '#ffffff',
+          weight: 2,
+          fillColor: '#e8590c',
+          fillOpacity: 0.95,
+        })
+          .bindPopup(() => createRestaurantPopup(restaurant), { maxWidth: 260 })
+          .bindTooltip(textElement(restaurant.name), { direction: 'top', offset: [0, -8] })
+          .addTo(layer);
+      });
+      setRestaurants({
+        status: 'success',
+        message: found.length ? '' : 'ルートの近くに飲食店の登録が見つかりませんでした。',
+        count: found.length,
+      });
+    } catch (error) {
+      if (!isLatest()) return;
+      setRestaurants({ status: 'error', message: errorText(error), count: 0 });
+    }
+  }
+
+  // 飲食店のピンの表示／非表示
+  function toggleRestaurants() {
+    const map = mapRef.current;
+    const layer = restaurantLayerRef.current;
+    if (!map || !layer) return;
+    if (showRestaurants) {
+      map.removeLayer(layer);
+    } else {
+      layer.addTo(map);
+    }
+    setShowRestaurants(!showRestaurants);
   }
 
   function selectDestination(place) {
@@ -238,6 +353,12 @@ export default function MapPage() {
   function clearRoute() {
     routeRequestRef.current += 1; // 途中のルート検索結果を無視する
     routeLayerRef.current?.clearLayers();
+    restaurantLayerRef.current?.clearLayers();
+    setRestaurants({ status: 'idle', message: '', count: 0 });
+    if (!showRestaurants && mapRef.current && restaurantLayerRef.current) {
+      restaurantLayerRef.current.addTo(mapRef.current);
+      setShowRestaurants(true);
+    }
     setDestination(null);
     setRoute({ status: 'idle', message: '', summary: null });
   }
@@ -293,6 +414,21 @@ export default function MapPage() {
           {destination && <p className="route-destination">目的地：{destination.name}</p>}
           {route.summary && <p className="route-result">{route.summary}</p>}
           {route.message && <p className="route-message">{route.message}</p>}
+          {restaurants.status !== 'idle' && (
+            <div className={`restaurant-status ${restaurants.status}`}>
+              {restaurants.status === 'success' && restaurants.count > 0 && (
+                <>
+                  <span className="restaurant-count">
+                    <span className="restaurant-dot" aria-hidden="true" />飲食店 {restaurants.count}件
+                  </span>
+                  <button type="button" className="text-button" onClick={toggleRestaurants} aria-pressed={showRestaurants}>
+                    {showRestaurants ? '非表示にする' : '表示する'}
+                  </button>
+                </>
+              )}
+              {restaurants.message && <span>{restaurants.message}</span>}
+            </div>
+          )}
           {destination && (
             <button type="button" className="text-button" onClick={clearRoute}>ルートを消す</button>
           )}
@@ -318,11 +454,12 @@ export default function MapPage() {
       <p className="map-credits">
         場所の検索：<a href="https://nominatim.org/" target="_blank" rel="noreferrer">Nominatim</a>
         ／ 経路：<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noreferrer">FOSSGIS（OSRM）</a>
+        ／ 店舗情報：<a href="https://overpass-api.de/" target="_blank" rel="noreferrer">Overpass API</a>
         ／ 地図データ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
         ／ <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">地図の誤りを報告</a>
       </p>
       <p className="status-note">
-        ルート検索では、現在地と目的地を外部の経路サービス（FOSSGIS）に、検索した言葉を Nominatim に送信します。
+        ルート検索では、現在地と目的地を外部の経路サービス（FOSSGIS）に、検索した言葉を Nominatim に、ルート周辺の範囲を Overpass API に送信します。
         アプリ内には保存しません。所要時間は目安です。
       </p>
     </PageShell>
