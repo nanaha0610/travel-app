@@ -10,12 +10,10 @@
 .trip-controls { display: grid; gap: 16px; padding: 20px; margin-bottom: 20px; background: #eaf0e8; border-radius: 16px; }
 .trip-controls label, .trip-place { display: grid; gap: 6px; }
 .trip-controls input, .trip-controls select, .trip-place input { width: 100%; min-height: 44px; padding: 8px; border: 1px solid #8caa97; border-radius: 8px; font: inherit; }
-.trip-controls button, .trip-user button, .trip-video-card button { min-height: 44px; padding: 8px 16px; background: #185239; color: white; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
+.trip-controls button, .trip-user button { min-height: 44px; padding: 8px 16px; background: #185239; color: white; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
 .trip-controls form { display: grid; gap: 8px; }
 .trip-user { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .trip-video-list { display: flex; overflow-x: auto; gap: 12px; padding: 12px 0; }
-.trip-video-card { flex: 0 0 230px; padding: 12px; display: grid; align-content: start; gap: 8px; background: #eaf0e8; border-radius: 12px; }
-.trip-video-card video { width: 100%; aspect-ratio: 4 / 3; background: #17382e; }
 .trip-place { margin: 20px 0; }
 .trip-controls button:disabled, .capture-actions button:disabled { opacity: .55; cursor: default; }
 .capture-actions { gap: 10px; flex-wrap: wrap; }

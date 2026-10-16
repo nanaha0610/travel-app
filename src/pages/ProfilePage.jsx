@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import PageShell from '../components/PageShell.jsx';
 import LoginPanel from '../components/LoginPanel.jsx';
+import TripVideos from '../components/TripVideos.jsx';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { isApiConfigured } from '../api/client.js';
 import './ProfilePage.css';
@@ -69,6 +70,7 @@ function NewTripForm({ onCreated }) {
 }
 
 function TripItem({ trip }) {
+  const [expanded, setExpanded] = useState(false);
   return (
     <article className="mypage-trip">
       <header className="mypage-trip-header">
@@ -80,7 +82,13 @@ function TripItem({ trip }) {
           </span>
         </p>
       </header>
-      <p className="mypage-trip-empty">保存した動画は「撮影」画面で旅行を選ぶと確認できます。</p>
+      <button type="button" className="mypage-button" aria-expanded={expanded}
+        aria-controls={`trip-videos-${trip.id}`} onClick={() => setExpanded(value => !value)}>
+        {expanded ? '動画を閉じる' : 'この旅行の動画を見る'}
+      </button>
+      <div id={`trip-videos-${trip.id}`}>
+        {expanded && <TripVideos tripId={String(trip.id)} tripTitle={trip.title} />}
+      </div>
     </article>
   );
 }
@@ -174,11 +182,11 @@ function ProfileContent() {
 }
 
 export default function ProfilePage() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
 
   return (
     <PageShell title="マイページ" description="あなたの旅を、ひとつずつ。">
-      {!isApiConfigured ? <ApiNotConfigured /> : isLoggedIn ? <ProfileContent /> : <LoginPanel />}
+      {!isApiConfigured ? <ApiNotConfigured /> : isLoggedIn ? <ProfileContent key={user.id} /> : <LoginPanel />}
     </PageShell>
   );
 }
