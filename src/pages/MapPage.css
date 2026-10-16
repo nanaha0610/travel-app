@@ -297,3 +297,31 @@
   font-size: 11px;
   color: #52685d;
 }
+
+/* 出発地・目的地の入力欄のまとまり */
+.route-field {
+  margin-bottom: 12px;
+}
+
+.route-field-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #203c35;
+}
+
+.route-field .mode-switch {
+  margin-bottom: 10px;
+}
+
+/* 指定した出発地の表示 */
+.route-origin {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: #1a7f37;
+}
+
+/* 地図上の出発地の名前 */
+.origin-label {
+  color: #1a7f37;
+}
