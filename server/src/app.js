@@ -1,6 +1,7 @@
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { randomBytes } from 'node:crypto';
+import { videoRoutes } from './videos.js';
 import { hashPassword, verifyPassword, issueSession, requireAuth } from './auth.js';
 
 const credentials = (body) => body && typeof body.email === 'string'
@@ -81,6 +82,7 @@ export function createApp(db, { origins = [], trustProxy = false } = {}) {
     const [result] = await db.execute('INSERT INTO trips (owner_id, title) VALUES (?, ?)', [req.user.id, body.title.trim()]);
     res.status(201).json({ trip: { id: String(result.insertId), owner_id: req.user.id, title: body.title.trim(), status: 'draft' } });
   });
+  videoRoutes(app, db, authenticate);
   app.use((_req, res) => res.status(404).json({ error: 'API が見つかりません。' }));
   app.use((error, _req, res, _next) => {
     if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON の形式を確認してください。' });

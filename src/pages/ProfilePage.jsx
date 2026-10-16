@@ -80,7 +80,7 @@ function TripItem({ trip }) {
           </span>
         </p>
       </header>
-      <p className="mypage-trip-empty">動画はまだありません（動画の保存は準備中です）</p>
+      <p className="mypage-trip-empty">保存した動画は「撮影」画面で旅行を選ぶと確認できます。</p>
     </article>
   );
 }
