@@ -32,3 +32,27 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   INDEX sessions_expiry (expires_at),
   FOREIGN KEY (user_id) REFERENCES auth_users(profile_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS trip_places (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  trip_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  latitude DECIMAL(10,7) NULL,
+  longitude DECIMAL(10,7) NULL,
+  UNIQUE KEY trip_place_name (trip_id, name),
+  FOREIGN KEY (trip_id) REFERENCES trips(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS trip_videos (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  trip_place_id BIGINT UNSIGNED NOT NULL,
+  upload_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  captured_at DATETIME(3) NOT NULL,
+  mime_type VARCHAR(40) NOT NULL,
+  byte_size INT UNSIGNED NOT NULL,
+  video_data MEDIUMBLOB NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY video_upload (trip_place_id, upload_id),
+  CHECK (byte_size > 0 AND byte_size <= 2097152),
+  FOREIGN KEY (trip_place_id) REFERENCES trip_places(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

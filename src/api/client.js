@@ -14,13 +14,14 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest(path, { method = 'GET', token, body } = {}) {
+export async function apiRequest(path, { method = 'GET', token, body, rawBody, contentType, responseType = 'json' } = {}) {
   if (!isApiConfigured) {
     throw new ApiError('APIの接続先（VITE_API_BASE_URL）が設定されていません。', 0);
   }
 
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (rawBody !== undefined) headers['Content-Type'] = contentType || 'application/octet-stream';
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let response;
@@ -28,13 +29,15 @@ export async function apiRequest(path, { method = 'GET', token, body } = {}) {
     response = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiError('サーバーに接続できません。サーバーが起動しているか確認してください。', 0);
   }
 
   if (response.status === 204) return null;
+
+  if (response.ok && responseType === 'blob') return response.blob();
 
   let data = null;
   try {

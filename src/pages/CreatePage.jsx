@@ -1,140 +1,124 @@
 import { useEffect, useRef, useState } from 'react';
 import PageShell from '../components/PageShell.jsx';
+import CameraCapture from './CameraCapture.jsx';
 import './CreatePage.css';
 
-export default function CreatePage() {
-  const live = useRef(null);
-  const media = useRef(null);
-  const recorder = useRef(null);
-  const timer = useRef(null);
-  const clip = useRef('');
-  const generation = useRef(0);
-  const [phase, setPhase] = useState('idle');
-  const [url, setUrl] = useState('');
-  const [seconds, setSeconds] = useState(5);
-  const [error, setError] = useState('');
-  function release() {
-    media.current?.getTracks().forEach(track => track.stop());
-    media.current = null;
-  }
-  useEffect(() => () => {
-    generation.current++;
-    clearInterval(timer.current);
-    if (recorder.current) {
-      recorder.current.onstop = null;
-      recorder.current.ondataavailable = null;
-      recorder.current.onerror = null;
-      if (recorder.current.state !== 'inactive') recorder.current.stop();
-    }
-    release();
-    if (clip.current) URL.revokeObjectURL(clip.current);
-  }, []);
+import LoginPanel from '../components/LoginPanel.jsx';
+import { useAuth } from '../auth/AuthProvider.jsx';
+import { isApiConfigured } from '../api/client.js';
 
-  async function openCamera() {
-    setError('');
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setError('HTTPSのページ、またはPCのlocalhostで開いてください。');
-      return;
-    }
-    if (!window.MediaRecorder) {
-      setError('このブラウザは録画に対応していません。別のブラウザでお試しください。');
-      return;
-    }
-    const id = ++generation.current;
-    setPhase('opening');
+function SavedVideo({ item }) {
+  const { authRequest } = useAuth();
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const source = useRef('');
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; if (source.current) URL.revokeObjectURL(source.current); }; }, []);
+  async function play() {
+    setLoading(true); setError('');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
-      if (id !== generation.current) {
-        stream.getTracks().forEach(track => track.stop());
-        return;
-      }
-      media.current = stream;
-      live.current.srcObject = stream;
-      await live.current.play();
-      if (id !== generation.current) return;
-      if (clip.current) URL.revokeObjectURL(clip.current);
-      clip.current = '';
-      setUrl('');
-      setPhase('ready');
-    } catch (e) {
-      if (id !== generation.current) return;
-      release();
-      setError(e.name === 'NotAllowedError'
-        ? 'カメラとマイクの使用をブラウザのサイト設定で許可してください。'
-        : 'カメラを起動できません。カメラ・マイクの接続や、ほかのアプリが使用していないか確認してください。');
-      setPhase(clip.current ? 'preview' : 'idle');
-    }
+      const blob = await authRequest(`/api/videos/${item.id}/content`, { responseType: 'blob' });
+      if (!mounted.current) return;
+      source.current = URL.createObjectURL(blob);
+      setUrl(source.current);
+    } catch (e) { if (mounted.current) setError(e.message); }
+    finally { if (mounted.current) setLoading(false); }
   }
-  function stop() {
-    clearInterval(timer.current);
-    if (recorder.current?.state === 'recording') {
-      setPhase('processing');
-      recorder.current.stop();
-    }
-  }
-  function record() {
-    setError('');
+  return <article className="trip-video-card">
+    <p>{new Date(item.captured_at).toLocaleString('ja-JP')}</p><strong>{item.place_name}</strong>
+    {url ? <video src={url} controls autoPlay playsInline aria-label={`${item.place_name}の保存動画`} /> : <button type="button" onClick={play} disabled={loading}>{loading ? '読込中…' : '▶ 動画を再生'}</button>}
+    {error && <p role="alert">{error}</p>}
+  </article>;
+}
+function CreateContent() {
+  const { user, authRequest } = useAuth();
+  const [trips, setTrips] = useState([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
+  const [tripLoadFailed, setTripLoadFailed] = useState(false);
+  const [tripReloadKey, setTripReloadKey] = useState(0);
+  const [tripId, setTripId] = useState('');
+  const [videos, setVideos] = useState([]);
+  const [place, setPlace] = useState('');
+  const [draft, setDraft] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [loadingVideos, setLoadingVideos] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [onlyToday, setOnlyToday] = useState(true);
+  const [cameraKey, setCameraKey] = useState(0);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const selection = useRef(0);
+  const locked = loadingTrips || busy || pending || !!draft;
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    setLoadingTrips(true); setTripLoadFailed(false);
+    authRequest('/api/trips').then(data => { if (active) { setTrips(data.trips); setTripId(String(data.trips[0]?.id || '')); } }).catch(e => { if (active) { setError(e.message); setTripLoadFailed(true); } }).finally(() => { if (active) setLoadingTrips(false); });
+    return () => { active = false; };
+  }, [authRequest, tripReloadKey]);
+  useEffect(() => {
+    const version = ++selection.current;
+    setVideos([]); setNotice(''); setLoadFailed(false);
+    if (!tripId) return;
+    setLoadingVideos(true);
+    authRequest(`/api/trips/${tripId}/videos`).then(data => { if (version === selection.current) setVideos(data.videos); })
+      .catch(e => { if (version === selection.current) { setError(e.message); setLoadFailed(true); } })
+      .finally(() => { if (version === selection.current) setLoadingVideos(false); });
+    return () => { selection.current++; };
+  }, [tripId, authRequest, reloadKey]);
+  async function addTrip(event) {
+    event.preventDefault(); setPending(true); setError('');
+    const form = event.currentTarget;
     try {
-      const mimeType = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find(type => MediaRecorder.isTypeSupported(type));
-      const capture = new MediaRecorder(media.current, mimeType ? { mimeType } : undefined);
-      recorder.current = capture;
-      const chunks = [];
-      capture.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-      capture.onstop = () => {
-        clearInterval(timer.current);
-        release();
-        recorder.current = null;
-        const blob = new Blob(chunks, { type: capture.mimeType || chunks[0]?.type });
-        if (!blob.size) {
-          setError('動画を記録できませんでした。もう一度撮影してください。');
-          setPhase('idle');
-          return;
-        }
-        clip.current = URL.createObjectURL(blob);
-        setUrl(clip.current);
-        setPhase('preview');
-      };
-      capture.onerror = () => {
-        capture.onstop = null;
-        clearInterval(timer.current);
-        release();
-        recorder.current = null;
-        setError('録画に失敗しました。もう一度お試しください。');
-        setPhase('idle');
-      };
-      capture.start();
-      setSeconds(5);
-      setPhase('recording');
-      const start = performance.now();
-      timer.current = setInterval(() => {
-        const remaining = Math.max(0, 5 - (performance.now() - start) / 1000);
-        setSeconds(Math.ceil(remaining));
-        if (remaining === 0) stop();
-      }, 100);
-    } catch {
-      release();
-      setPhase('idle');
-      setError('録画を開始できませんでした。カメラを起動し直してください。');
-    }
+      const { trip } = await authRequest('/api/trips', { method: 'POST', body: { title: new FormData(form).get('title').trim() } });
+      setTrips(current => [trip, ...current]); setTripId(String(trip.id)); form.reset();
+    } catch (e) { setError(e.message); } finally { setPending(false); }
   }
-  return (
-    <PageShell title="旅を記録する" description="5秒の動画で、旅の思い出を残そう。">
-      <div className="capture-frame">
-        <video ref={live} autoPlay muted playsInline hidden={!['opening', 'ready', 'recording', 'processing'].includes(phase)} aria-label="カメラの映像" />
-        {phase === 'preview' && <video src={url} controls playsInline aria-label="撮影した動画" />}
-        {phase === 'idle' && <p>旅先の景色を撮影しよう</p>}
-        {phase === 'opening' && <p className="capture-overlay" role="status">カメラの許可を待っています…</p>}
-        {phase === 'recording' && <p className="capture-overlay" role="status">● 撮影中 あと{seconds}秒</p>}
+  async function save() {
+    if (!draft || pending) return;
+    if (draft.blob.size > 2 * 1024 * 1024) { setError('2MBを超えています。撮り直してください。'); return; }
+    setPending(true); setError(''); setNotice('');
+    try {
+      const params = new URLSearchParams({ uploadId: draft.uploadId, capturedAt: draft.capturedAt, place: place.trim() || '場所未設定' });
+      await authRequest(`/api/trips/${tripId}/videos?${params}`, { method: 'POST', rawBody: draft.blob, contentType: draft.blob.type.split(';')[0] });
+      // Clear only after the server has committed. Retry keeps the same upload ID.
+      setDraft(null); setCameraKey(key => key + 1); setBusy(false); setNotice('この旅行に保存しました。');
+      const data = await authRequest(`/api/trips/${tripId}/videos`); setVideos(data.videos);
+    } catch (e) { setError(e.message); } finally { setPending(false); }
+  }
+  const visibleVideos = onlyToday ? videos.filter(item => new Date(item.captured_at).toDateString() === new Date().toDateString()) : videos;
+  return <>
+    {error && <p className="capture-error" role="alert">{error}</p>}
+    <p>{user.display_name}さんの旅の記録</p>
+    {loadingTrips && <p role="status">旅行を読み込んでいます…</p>}
+    {tripLoadFailed && <button type="button" onClick={() => { setError(''); setTripReloadKey(key => key + 1); }}>旅行一覧を再読み込み</button>}
+      <div className="trip-controls">
+        <label>記録する旅行<select value={tripId} disabled={locked} onChange={e => { setError(''); setTripId(e.target.value); }}><option value="" disabled>旅行を作成してください</option>{trips.map(trip => <option key={trip.id} value={String(trip.id)}>{trip.title}</option>)}</select></label>
+        <form onSubmit={addTrip}><label>新しい旅行名<input name="title" maxLength={100} required disabled={locked} placeholder="例：京都旅行" /></label><button disabled={locked}>旅行を作成</button></form>
       </div>
-      <div className="capture-actions">
-        {phase === 'idle' && <button onClick={openCamera}>カメラを起動</button>}
-        {phase === 'ready' && <button onClick={record}>5秒撮影する</button>}
-        {phase === 'recording' && <button onClick={stop}>撮影を終了</button>}
-        {phase === 'processing' && <p role="status">動画を準備しています…</p>}
-        {phase === 'preview' && <button onClick={openCamera}>撮り直す</button>}
-      </div>
-      {error && <p className="capture-error" role="alert">{error}</p>}
-      <p className="status-note">音声も録音します。動画はこの画面での確認用です。投稿・保存はまだ行わず、画面を移動すると消えます。</p>
-    </PageShell>
-  );
+      {tripId && <>
+        <h2>{trips.find(trip => String(trip.id) === tripId)?.title}の動画（{videos.length}/20本）</h2>
+        <label className="trip-day-filter"><input type="checkbox" checked={onlyToday} onChange={e => setOnlyToday(e.target.checked)} />今日の動画だけ表示</label>
+        {loadFailed && <button type="button" onClick={() => { setError(''); setReloadKey(key => key + 1); }}>動画一覧を再読み込み</button>}
+        {loadingVideos ? <p role="status">動画一覧を読み込んでいます…</p> : loadFailed ? <p>動画一覧を取得できませんでした。再読み込みしてください。</p> : visibleVideos.length ? <div className="trip-video-list">{visibleVideos.map(item => <SavedVideo key={`${tripId}-${item.id}`} item={item} />)}</div> : <p>{onlyToday ? '今日の動画はまだありません。過去の動画はチェックを外すと見られます。' : 'まだ動画はありません。最初の思い出を撮影しましょう。'}</p>}
+        <p role="status">{notice}</p>
+        <label className="trip-place">撮影場所（任意）<input value={place} onChange={e => setPlace(e.target.value)} maxLength={100} disabled={locked} placeholder="例：清水寺" /></label>
+        {videos.length < 20 && !loadingVideos && !loadFailed ? <>
+          <div inert={pending ? true : undefined}><CameraCapture key={`${tripId}-${cameraKey}`} onCapture={setDraft} onBusy={setBusy} /></div>
+          {draft && <div className="capture-actions"><button onClick={save} disabled={pending || busy}>{pending ? '保存中…' : 'この旅行に保存'}</button><button disabled={pending || busy} onClick={() => { setDraft(null); setCameraKey(key => key + 1); setBusy(false); }}>破棄する</button></div>}
+        </> : videos.length >= 20 && <p>この旅行の保存上限（20本）に達しました。</p>}
+      </>}
+      <p className="status-note">1本2MB・1旅行20本まで。保存済み動画は再ログイン後も見られます。現在は本人のみ再生できます。</p>
+  </>;
+}
+
+export default function CreatePage() {
+  const { user } = useAuth();
+  return <PageShell title="旅を記録する" description="3秒の思い出を、旅行ごとに残そう。">
+    {!isApiConfigured ? <p role="status">サーバーへの接続設定が必要です。チームのセットアップ手順を確認してください。</p>
+      : user ? <CreateContent key={user.id} /> : <LoginPanel />}
+  </PageShell>;
 }
