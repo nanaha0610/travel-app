@@ -1,0 +1,20 @@
+.feed-private-note, .feed-hint { color: #52685d; font-size: 13px; margin-bottom: 12px; }
+.feed-toolbar, .feed-navigation { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
+.feed-toolbar button, .feed-navigation button, .feed-more, .feed-feedback button, .feed-player button, .feed-empty-refresh { min-height: 44px; padding: 8px 16px; border: 1px solid #8caa97; border-radius: 10px; background: #fff; color: #203c35; font: inherit; cursor: pointer; }
+.feed-navigation button { flex: 1; }
+.feed-navigation button:disabled, .feed-more:disabled { opacity: .5; cursor: default; }
+.feed-viewport { height: clamp(340px, 65dvh, 680px); overflow-y: auto; scroll-snap-type: y mandatory; border-radius: 20px; background: #10271f; overscroll-behavior-y: contain; }
+.feed-item { height: 100%; display: flex; flex-direction: column; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; }
+.feed-player { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; color: #fff; background: #10271f; }
+.feed-player video { width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.feed-resume, .feed-player-error { position: absolute; left: 16px; right: 16px; top: 20%; }
+.feed-player-error { padding: 16px; border-radius: 12px; background: #10271fee; }
+.feed-player-error button { margin-top: 12px; }
+.feed-caption { flex: none; padding: 12px 18px 16px; color: #fff; background: #193c2e; }
+.feed-caption h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-caption p { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-caption time { font-size: 12px; color: #d1e0d5; }
+.feed-more { width: 100%; margin: 12px 0; }
+.feed-feedback [role="alert"] { margin-bottom: 12px; color: #932f20; }
+.feed-viewport:focus-visible, .feed-toolbar button:focus-visible, .feed-navigation button:focus-visible, .feed-more:focus-visible, .feed-player button:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }
+.feed-empty-refresh { margin-top: 16px; }

@@ -9,6 +9,21 @@ export function validVideo(buffer, type) {
 const validId = value => /^[1-9][0-9]{0,19}$/.test(value);
 
 export function videoRoutes(app, db, authenticate) {
+  // Keyset pagination avoids skipping records when a new recording is saved.
+  app.get('/api/videos', authenticate, async (req, res) => {
+    const before = req.query.before;
+    if (before !== undefined && (typeof before !== 'string' || !validId(before))) {
+      return res.status(400).json({ error: '一覧の続きを取得できません。最初から読み直してください。' });
+    }
+    const [rows] = await db.execute(
+      'SELECT v.id, v.captured_at, v.mime_type, v.byte_size, p.name AS place_name, t.id AS trip_id, t.title AS trip_title '
+      + 'FROM trip_videos v JOIN trip_places p ON p.id = v.trip_place_id JOIN trips t ON t.id = p.trip_id '
+      + 'WHERE t.owner_id = ?' + (before ? ' AND v.id < ?' : '') + ' ORDER BY v.id DESC LIMIT 21',
+      before ? [req.user.id, before] : [req.user.id],
+    );
+    const videos = rows.slice(0, 20);
+    res.json({ videos, nextCursor: rows.length > 20 ? String(videos.at(-1).id) : null });
+  });
   app.get('/api/trips/:tripId/videos', authenticate, async (req, res) => {
     if (!validId(req.params.tripId)) return res.sendStatus(400);
     const [trips] = await db.execute('SELECT id FROM trips WHERE id = ? AND owner_id = ?', [req.params.tripId, req.user.id]);
