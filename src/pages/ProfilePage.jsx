@@ -82,6 +82,7 @@ function TripItem({ trip }) {
           </span>
         </p>
       </header>
+      <a className="mypage-day-link" href={`#day?trip=${encodeURIComponent(trip.id)}`}>1日の記録を見る</a>
       <button type="button" className="mypage-button" aria-expanded={expanded}
         aria-controls={`trip-videos-${trip.id}`} onClick={() => setExpanded(value => !value)}>
         {expanded ? '動画を閉じる' : 'この旅行の動画を見る'}
