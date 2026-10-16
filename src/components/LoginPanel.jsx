@@ -1,5 +1,5 @@
 // ログイン・新規登録のフォーム（どの画面からでも使える共通部品）。
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import './LoginPanel.css';
 
@@ -8,20 +8,30 @@ export default function LoginPanel() {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const passwordConfirmRef = useRef(null);
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isRegister = mode === 'register';
+  // 確認欄に入力があって、パスワードと違うときだけ「一致していません」を出す
+  const isPasswordMismatch = isRegister && passwordConfirm !== '' && password !== passwordConfirm;
 
   function switchMode(nextMode) {
     setMode(nextMode);
+    setPasswordConfirm('');
     setError('');
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    if (isRegister && password !== passwordConfirm) {
+      // 確認欄の下に「一致していません」が出ているので、そこにカーソルを戻す（サーバーには送らない）
+      passwordConfirmRef.current?.focus();
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (isRegister) {
@@ -30,6 +40,7 @@ export default function LoginPanel() {
         await login({ email, password });
       }
       setPassword('');
+      setPasswordConfirm('');
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -49,7 +60,7 @@ export default function LoginPanel() {
       <form className="login-form" onSubmit={handleSubmit}>
         {isRegister && (
           <label>
-            表示名
+            アカウント名
             <input
               type="text"
               value={displayName}
@@ -83,6 +94,29 @@ export default function LoginPanel() {
           />
           <span className="login-hint">12〜128文字</span>
         </label>
+        {isRegister && (
+          <label>
+            パスワード（確認）
+            <input
+              ref={passwordConfirmRef}
+              type="password"
+              value={passwordConfirm}
+              onChange={(event) => setPasswordConfirm(event.target.value)}
+              maxLength={128}
+              autoComplete="new-password"
+              aria-invalid={isPasswordMismatch}
+              aria-describedby="login-password-confirm-hint"
+              required
+            />
+            <span
+              id="login-password-confirm-hint"
+              className={isPasswordMismatch ? 'login-hint login-hint-error' : 'login-hint'}
+              aria-live="polite"
+            >
+              {isPasswordMismatch ? 'パスワードが一致していません。' : 'もう一度同じパスワードを入力してください'}
+            </span>
+          </label>
+        )}
 
         {error && <p className="login-error" role="alert">{error}</p>}
 

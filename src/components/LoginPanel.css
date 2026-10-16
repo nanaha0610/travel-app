@@ -14,3 +14,5 @@
 .login-submit:hover { background: #134330; }
 .login-submit:disabled { opacity: 0.6; cursor: wait; }
 .login-tabs button:focus-visible, .login-submit:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }
+.login-hint-error { color: #9b2c1f; font-weight: 700; }
+.login-form input[aria-invalid="true"] { border-color: #c0392b; }
