@@ -10,8 +10,8 @@ import {
   fetchRoute,
   formatDistance,
   formatDuration,
-  searchPlaces,
 } from './map/routeServices.js';
+import PlaceSearch from './map/PlaceSearch.jsx';
 import { fetchRestaurantsAlongRoute } from './map/restaurantService.js';
 import './MapPage.css';
 
@@ -33,6 +33,12 @@ const spotIcon = L.icon({
   tooltipAnchor: [0, -36],
   shadowSize: [41, 41],
 });
+
+// 出発地の決め方
+const originModes = [
+  { id: 'current', label: '現在地' },
+  { id: 'place', label: '場所を指定' },
+];
 
 const travelModes = [
   { id: 'foot', label: '徒歩' },
@@ -142,13 +148,13 @@ export default function MapPage() {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null); // 作成した地図を保存しておく場所
   const locationLayerRef = useRef(null); // 現在地の点と誤差の円
-  const routeLayerRef = useRef(null); // ルートの線と目的地のピン
+  const routeLayerRef = useRef(null); // ルートの線と出発地・目的地のピン
   const restaurantLayerRef = useRef(null); // ルート沿いの飲食店のピン
   const routeRequestRef = useRef(0); // 古いルート結果で上書きしないための番号
 
   const [location, setLocation] = useState({ status: 'idle', message: '' });
-  const [keyword, setKeyword] = useState('');
-  const [search, setSearch] = useState({ status: 'idle', message: '', results: [] });
+  const [originMode, setOriginMode] = useState('current'); // 'current'＝現在地 / 'place'＝自分で指定
+  const [origin, setOrigin] = useState(null); // 自分で指定した出発地
   const [mode, setMode] = useState('foot');
   const [destination, setDestination] = useState(null);
   const [route, setRoute] = useState({ status: 'idle', message: '', summary: null });
@@ -235,39 +241,32 @@ export default function MapPage() {
     }
   }
 
-  // 検索フォーム（ボタンを押したときだけ検索する。入力中の自動検索は利用条件で禁止）
-  async function handleSearch(event) {
-    event.preventDefault();
-    if (!keyword.trim() || search.status === 'searching') return;
-    setSearch({ status: 'searching', message: '検索しています…', results: [] });
-    try {
-      const results = await searchPlaces(keyword);
-      setSearch({
-        status: results.length ? 'success' : 'error',
-        message: results.length ? '目的地を選んでください。' : '見つかりませんでした。別の言葉でお試しください。',
-        results,
-      });
-    } catch (error) {
-      setSearch({ status: 'error', message: errorText(error), results: [] });
-    }
+  // 今の設定で使う出発地（null＝現在地を使う）
+  function chosenStart(nextOriginMode = originMode, nextOrigin = origin) {
+    return nextOriginMode === 'place' ? nextOrigin : null;
   }
 
-  // 現在地から目的地までのルートを出す
-  async function showRoute(place, travelMode) {
+  // 出発地から目的地までのルートを出す
+  // start が null のときは現在地から、場所が入っていればその場所から
+  async function showRoute(place, travelMode, start) {
     const requestId = ++routeRequestRef.current;
     const isLatest = () => requestId === routeRequestRef.current && mapRef.current;
 
-    setRoute({ status: 'loading', message: '現在地を取得しています…', summary: null });
     try {
-      const position = await getCurrentPosition();
-      if (!isLatest()) return;
-      drawCurrentLocation(position);
+      let from = start;
+      if (!from) {
+        setRoute({ status: 'loading', message: '現在地を取得しています…', summary: null });
+        const position = await getCurrentPosition();
+        if (!isLatest()) return;
+        drawCurrentLocation(position);
+        from = position;
+      }
 
       setRoute({ status: 'loading', message: 'ルートを検索しています…', summary: null });
-      const result = await fetchRoute(position, place, travelMode);
+      const result = await fetchRoute(from, place, travelMode);
       if (!isLatest()) return;
 
-      // 前のルートを消して、新しいルートと目的地のピンを描く
+      // 前のルートを消して、新しいルートと出発地・目的地のピンを描く
       const layer = routeLayerRef.current;
       layer.clearLayers();
       const line = L.polyline(result.path, {
@@ -275,6 +274,18 @@ export default function MapPage() {
         weight: 6,
         opacity: 0.85,
       }).addTo(layer);
+      if (start) {
+        // 自分で指定した出発地は、緑の丸で表示（現在地の青い点と区別する）
+        L.circleMarker([start.lat, start.lng], {
+          radius: 9,
+          color: '#ffffff',
+          weight: 3,
+          fillColor: '#1a7f37',
+          fillOpacity: 1,
+        })
+          .bindTooltip(textElement(`出発：${start.name}`), { permanent: true, direction: 'top', offset: [0, -8], className: 'spot-label origin-label' })
+          .addTo(layer);
+      }
       L.marker([place.lat, place.lng], { icon: spotIcon, alt: place.name })
         .bindTooltip(textElement(place.name), { permanent: true, direction: 'top', className: 'spot-label destination-label' })
         .addTo(layer);
@@ -338,16 +349,45 @@ export default function MapPage() {
     setShowRestaurants(!showRestaurants);
   }
 
+  // 出発地がまだ決まっていないときの表示
+  function askForOrigin() {
+    routeRequestRef.current += 1;
+    routeLayerRef.current?.clearLayers();
+    restaurantLayerRef.current?.clearLayers();
+    setRestaurants({ status: 'idle', message: '', count: 0 });
+    setRoute({ status: 'error', message: '出発地を検索して選ぶと、ルートを表示します。', summary: null });
+  }
+
+  // 目的地・出発地・移動手段のどれかが変わったら、ルートを出し直す
+  function updateRoute(nextDestination, nextMode, nextOriginMode, nextOrigin) {
+    if (!nextDestination) return;
+    if (nextOriginMode === 'place' && !nextOrigin) {
+      askForOrigin();
+      return;
+    }
+    showRoute(nextDestination, nextMode, chosenStart(nextOriginMode, nextOrigin));
+  }
+
   function selectDestination(place) {
     setDestination(place);
-    setSearch((current) => ({ ...current, status: 'idle', message: '', results: [] }));
-    showRoute(place, mode);
+    updateRoute(place, mode, originMode, origin);
+  }
+
+  function selectOrigin(place) {
+    setOrigin(place);
+    updateRoute(destination, mode, originMode, place);
+  }
+
+  function changeOriginMode(nextOriginMode) {
+    if (nextOriginMode === originMode) return;
+    setOriginMode(nextOriginMode);
+    updateRoute(destination, mode, nextOriginMode, origin);
   }
 
   function changeMode(nextMode) {
     if (nextMode === mode) return;
     setMode(nextMode);
-    if (destination) showRoute(destination, nextMode);
+    updateRoute(destination, nextMode, originMode, origin);
   }
 
   function clearRoute() {
@@ -365,21 +405,45 @@ export default function MapPage() {
 
   return (
     <PageShell title="旅の地図" description="目的地までの道中に、新しい発見を。">
-      <form className="route-search" onSubmit={handleSearch} role="search">
-        <label htmlFor="destination-input" className="visually-hidden">目的地</label>
-        <input
+      <section className="route-field" aria-labelledby="origin-heading">
+        <h2 id="origin-heading" className="route-field-title">出発地</h2>
+        <div className="mode-switch" role="group" aria-label="出発地の決め方">
+          {originModes.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              aria-pressed={originMode === m.id}
+              onClick={() => changeOriginMode(m.id)}
+              disabled={route.status === 'loading'}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {originMode === 'place' && (
+          <>
+            {origin && <p className="route-origin">出発地：{origin.name}</p>}
+            <PlaceSearch
+              id="origin-input"
+              label="出発地"
+              placeholder={origin ? '別の出発地を入力' : '出発地を入力（例：東京駅）'}
+              selectMessage="出発地を選んでください。"
+              onSelect={selectOrigin}
+            />
+          </>
+        )}
+      </section>
+
+      <section className="route-field" aria-labelledby="destination-heading">
+        <h2 id="destination-heading" className="route-field-title">目的地</h2>
+        <PlaceSearch
           id="destination-input"
-          type="search"
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          label="目的地"
           placeholder="目的地を入力（例：東京タワー）"
-          autoComplete="off"
-          enterKeyHint="search"
+          selectMessage="目的地を選んでください。"
+          onSelect={selectDestination}
         />
-        <button type="submit" disabled={!keyword.trim() || search.status === 'searching'}>
-          {search.status === 'searching' ? '検索中…' : '検索'}
-        </button>
-      </form>
+      </section>
 
       <div className="mode-switch" role="group" aria-label="移動手段">
         {travelModes.map((m) => (
@@ -395,23 +459,13 @@ export default function MapPage() {
         ))}
       </div>
 
-      <p className={`map-message ${search.status}`} role="status" aria-live="polite">{search.message}</p>
-      {search.results.length > 0 && (
-        <ul className="search-results">
-          {search.results.map((place) => (
-            <li key={place.id}>
-              <button type="button" onClick={() => selectDestination(place)}>
-                <strong>{place.name}</strong>
-                <span>{place.address}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
       {(destination || route.status !== 'idle') && (
         <div className={`route-summary ${route.status}`} role="status" aria-live="polite">
-          {destination && <p className="route-destination">目的地：{destination.name}</p>}
+          {destination && (
+            <p className="route-destination">
+              {originMode === 'place' && origin ? origin.name : '現在地'} → {destination.name}
+            </p>
+          )}
           {route.summary && <p className="route-result">{route.summary}</p>}
           {route.message && <p className="route-message">{route.message}</p>}
           {restaurants.status !== 'idle' && (
@@ -459,7 +513,7 @@ export default function MapPage() {
         ／ <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">地図の誤りを報告</a>
       </p>
       <p className="status-note">
-        ルート検索では、現在地と目的地を外部の経路サービス（FOSSGIS）に、検索した言葉を Nominatim に、ルート周辺の範囲を Overpass API に送信します。
+        ルート検索では、出発地（現在地または指定した場所）と目的地を外部の経路サービス（FOSSGIS）に、検索した言葉を Nominatim に、ルート周辺の範囲を Overpass API に送信します。
         アプリ内には保存しません。所要時間は目安です。
       </p>
     </PageShell>
