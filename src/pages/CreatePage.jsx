@@ -1,36 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import PageShell from '../components/PageShell.jsx';
 import CameraCapture from './CameraCapture.jsx';
+import SavedVideo from '../components/SavedVideo.jsx';
 import './CreatePage.css';
 
 import LoginPanel from '../components/LoginPanel.jsx';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { isApiConfigured } from '../api/client.js';
 
-function SavedVideo({ item }) {
-  const { authRequest } = useAuth();
-  const [url, setUrl] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const source = useRef('');
-  const mounted = useRef(false);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; if (source.current) URL.revokeObjectURL(source.current); }; }, []);
-  async function play() {
-    setLoading(true); setError('');
-    try {
-      const blob = await authRequest(`/api/videos/${item.id}/content`, { responseType: 'blob' });
-      if (!mounted.current) return;
-      source.current = URL.createObjectURL(blob);
-      setUrl(source.current);
-    } catch (e) { if (mounted.current) setError(e.message); }
-    finally { if (mounted.current) setLoading(false); }
-  }
-  return <article className="trip-video-card">
-    <p>{new Date(item.captured_at).toLocaleString('ja-JP')}</p><strong>{item.place_name}</strong>
-    {url ? <video src={url} controls autoPlay playsInline aria-label={`${item.place_name}の保存動画`} /> : <button type="button" onClick={play} disabled={loading}>{loading ? '読込中…' : '▶ 動画を再生'}</button>}
-    {error && <p role="alert">{error}</p>}
-  </article>;
-}
 function CreateContent() {
   const { user, authRequest } = useAuth();
   const [trips, setTrips] = useState([]);

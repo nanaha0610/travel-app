@@ -1,0 +1,6 @@
+.trip-videos { margin-top: 16px; }
+.trip-videos > p { color: #52685d; font-size: 13px; }
+.trip-videos-place h4 { margin: 18px 0 10px; overflow-wrap: anywhere; }
+.trip-videos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.trip-videos-feedback { margin-top: 12px; }
+.trip-videos-feedback [role="alert"] { color: #932f20; }

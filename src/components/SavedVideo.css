@@ -1,0 +1,7 @@
+.trip-video-card { min-width: 0; flex: 0 0 230px; padding: 12px; display: grid; align-content: start; gap: 8px; background: #eaf0e8; border-radius: 12px; overflow-wrap: anywhere; }
+.trip-video-card time { font-size: 13px; color: #52685d; }
+.trip-video-card video { width: 100%; aspect-ratio: 4 / 3; background: #17382e; }
+.trip-video-card button { min-height: 44px; padding: 8px 16px; background: #185239; color: white; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
+.trip-video-card button:disabled { opacity: .55; cursor: wait; }
+.trip-video-card button:focus-visible { outline: 3px solid #a05c18; outline-offset: 3px; }
+.trip-video-card [role="alert"] { color: #932f20; }
