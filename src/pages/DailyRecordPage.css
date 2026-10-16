@@ -1,0 +1,15 @@
+.daily-back { display: inline-block; margin: 4px 0 20px; color: #185239; }
+.daily-controls { display: flex; flex-wrap: wrap; gap: 16px; padding: 18px; background: #eaf0e8; border-radius: 16px; }
+.daily-controls label { display: grid; gap: 6px; flex: 1 1 180px; min-width: 0; font-weight: 700; }
+.daily-controls input, .daily-controls select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid #8caa97; border-radius: 8px; font: inherit; background: white; color: #203c35; }
+.daily-dates { display: flex; flex-wrap: wrap; gap: 8px; }
+.daily-button { min-height: 44px; padding: 8px 12px; border: 1px solid #8caa97; border-radius: 10px; background: white; color: #203c35; font: inherit; cursor: pointer; }
+.daily-button[aria-pressed="true"] { color: white; background: #185239; }
+.daily-button:focus-visible, .daily-controls input:focus-visible, .daily-controls select:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }
+.daily-summary { margin: 20px 0; font-weight: 700; }
+.daily-timeline { list-style: none; padding: 0; }
+.daily-timeline > li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding-bottom: 24px; }
+.daily-stop { display: flex; flex-direction: column; align-items: center; gap: 8px; border-left: 2px solid #c9d6cc; font-weight: 700; font-size: 14px; }
+.daily-stop span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #185239; color: white; }
+.daily-timeline .trip-video-card { width: 100%; max-width: 520px; }
+.daily-note { color: #52685d; font-size: 13px; }

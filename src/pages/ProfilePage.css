@@ -66,3 +66,5 @@
 .mypage-loading { padding: 20px 0; color: #52685d; font-size: 14px; text-align: center; }
 .mypage-error { color: #9b2c1f; font-size: 13px; }
 .mypage-panel .mypage-error { color: #9b2c1f; }
+
+.mypage-day-link { display: inline-flex; align-items: center; min-height: 44px; margin: 8px 12px 8px 0; color: #185239; font-weight: 700; }
