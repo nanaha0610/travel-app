@@ -1,0 +1,15 @@
+.recorded-places { border:1px solid #cadbce; border-radius:20px; padding:22px; margin:20px 0; background:#f1f6ef; }
+.recorded-places h2 { font-size:20px; margin:0 0 16px; }
+.recorded-controls { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.recorded-controls label { display:grid; gap:8px; flex:1; min-width:180px; }
+.recorded-controls select { width:100%; min-height:44px; padding:8px; border:1px solid #91ac9a; border-radius:10px; background:white; font:inherit; }
+.recorded-places button { min-height:44px; padding:9px 14px; border:1px solid #91ac9a; border-radius:10px; background:white; color:#203c35; font:inherit; cursor:pointer; }
+.recorded-places button:disabled { opacity:.5; cursor:wait; }
+.recorded-place-list { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+.recorded-place-list button[aria-pressed="true"] { background:#23573f; color:white; }
+.recorded-place-detail { padding-top:18px; border-top:1px solid #cadbce; }
+.recorded-note { font-size:12px; color:#52685d; margin-top:16px; }
+.recorded-place-pin { display:grid; place-items:center; background:#23573f; color:white; border:3px solid white; border-radius:50%; box-shadow:0 2px 8px #0004; }
+.recorded-places button:focus-visible, .recorded-place-pin:focus-visible { outline:3px solid #b66d27; outline-offset:3px; }
+.public-spot-pin { display:grid; place-items:center; background:#a45e23; color:white; border:3px solid white; border-radius:50%; box-shadow:0 2px 8px #0004; }
+.public-spot-pin:focus-visible { outline:3px solid #245d42; outline-offset:3px; }

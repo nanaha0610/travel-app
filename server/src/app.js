@@ -2,6 +2,7 @@ import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { randomBytes } from 'node:crypto';
 import { videoRoutes } from './videos.js';
+import { spotRoutes } from './spots.js';
 import { hashPassword, verifyPassword, issueSession, requireAuth } from './auth.js';
 
 const credentials = (body) => body && typeof body.email === 'string'
@@ -52,7 +53,8 @@ export function createApp(db, { origins = [], trustProxy = false } = {}) {
       await connection.commit();
       res.status(201).json({ user: { id, email, display_name: displayName }, ...session });
     } catch (error) {
-      await connection.rollback();
+      // A disconnected connection can also reject rollback. Preserve the original error.
+      try { await connection.rollback(); } catch { connection.destroy?.(); }
       if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '登録できませんでした。既存アカウントでのログインを確認してください。' });
       next(error);
     } finally { connection.release(); }
@@ -83,11 +85,18 @@ export function createApp(db, { origins = [], trustProxy = false } = {}) {
     res.status(201).json({ trip: { id: String(result.insertId), owner_id: req.user.id, title: body.title.trim(), status: 'draft' } });
   });
   videoRoutes(app, db, authenticate);
+  spotRoutes(app, db, authenticate);
   app.use((_req, res) => res.status(404).json({ error: 'API が見つかりません。' }));
   app.use((error, _req, res, _next) => {
     if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON の形式を確認してください。' });
     if (error.type === 'entity.too.large') return res.status(413).json({ error: '送信データが大きすぎます。' });
     console.error(`API failure: ${error.code || 'UNKNOWN'}`);
+    if (['HANDSHAKE_SSL_ERROR', 'ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'PROTOCOL_CONNECTION_LOST'].includes(error.code)) {
+      return res.status(503).json({
+        code: 'DB_CONNECTION_FAILED',
+        error: 'データベースとの接続が切れています。少し待って再試行してください。登録中だった場合は、ログインも確認してください。',
+      });
+    }
     res.status(503).json({ error: 'サーバー処理に失敗しました。' });
   });
   return app;

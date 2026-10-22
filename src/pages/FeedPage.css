@@ -18,3 +18,17 @@
 .feed-feedback [role="alert"] { margin-bottom: 12px; color: #932f20; }
 .feed-viewport:focus-visible, .feed-toolbar button:focus-visible, .feed-navigation button:focus-visible, .feed-more:focus-visible, .feed-player button:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }
 .feed-empty-refresh { margin-top: 16px; }
+.trip-feed-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:18px; margin:24px 0; }
+.trip-feed-card { text-align:left; display:flex; flex-direction:column; gap:16px; padding:28px; min-height:220px; border:1px solid #cddbd0; border-radius:22px; background:linear-gradient(145deg,#eef4ea,#dcebe2); color:#203c35; cursor:pointer; font:inherit; }
+.trip-feed-card:hover { border-color:#376b54; background:#e1eee3; }
+.trip-feed-number { font-size:12px; letter-spacing:.15em; color:#52715d; }
+.trip-feed-card h2 { margin:0; overflow-wrap:anywhere; }
+.trip-feed-card time { font-size:13px; }
+.trip-feed-open { margin-top:auto; font-weight:600; }
+.trip-feed-empty { padding:32px; margin:24px 0; border-radius:20px; background:#edf3ec; }
+.trip-playback { display:flex; flex-direction:column; height:clamp(360px,65dvh,680px); border-radius:20px; overflow:hidden; margin-top:16px; }
+.trip-clip-list { list-style:none; padding:0; display:grid; gap:8px; margin:24px 0; }
+.trip-clip-list button { display:flex; width:100%; gap:16px; align-items:center; min-height:54px; padding:12px 16px; border:1px solid #d3dfd5; border-radius:12px; background:white; color:#203c35; text-align:left; font:inherit; cursor:pointer; }
+.trip-clip-list button[aria-current] { border-color:#245d42; background:#e2eee4; }
+.trip-clip-list strong { flex:1; overflow-wrap:anywhere; }
+.trip-feed-card:focus-visible, .trip-clip-list button:focus-visible { outline:3px solid #a05c18; outline-offset:3px; }

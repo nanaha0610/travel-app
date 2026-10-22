@@ -12,6 +12,8 @@ import {
   formatDuration,
 } from './map/routeServices.js';
 import PlaceSearch from './map/PlaceSearch.jsx';
+import RecordedPlaces from './map/RecordedPlaces.jsx';
+import PublicSpots from './map/PublicSpots.jsx';
 import { fetchRestaurantsAlongRoute } from './map/restaurantService.js';
 import './MapPage.css';
 
@@ -145,6 +147,7 @@ function errorText(error) {
 }
 
 export default function MapPage() {
+  const [mapInstance, setMapInstance] = useState(null);
   const mapElementRef = useRef(null);
   const mapRef = useRef(null); // 作成した地図を保存しておく場所
   const locationLayerRef = useRef(null); // 現在地の点と誤差の円
@@ -165,6 +168,7 @@ export default function MapPage() {
     // 地図を作成
     const map = L.map(mapElementRef.current);
     mapRef.current = map;
+    setMapInstance(map);
     locationLayerRef.current = L.layerGroup().addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
     restaurantLayerRef.current = L.layerGroup().addTo(map);
@@ -504,6 +508,8 @@ export default function MapPage() {
       </div>
 
       <div ref={mapElementRef} className="map-view" role="region" aria-label="観光スポットの地図" />
+      <PublicSpots map={mapInstance} />
+      <RecordedPlaces map={mapInstance} />
 
       <p className="map-credits">
         場所の検索：<a href="https://nominatim.org/" target="_blank" rel="noreferrer">Nominatim</a>

@@ -20,3 +20,7 @@
 
 .trip-day-filter { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
 .trip-day-filter input { width: 20px; height: 20px; }
+
+.capture-location { padding:16px; background:#edf3ec; border-radius:14px; margin:12px 0 20px; }
+.capture-location button { min-height:44px; padding:10px 16px; margin-right:8px; border:1px solid #8caa97; border-radius:10px; background:white; color:#203c35; font:inherit; cursor:pointer; }
+.capture-location p { font-size:13px; margin-top:8px; color:#52685d; }

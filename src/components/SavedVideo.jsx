@@ -1,12 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import './SavedVideo.css';
+import '../pages/map/SpotPicker.css';
 
 export default function SavedVideo({ item }) {
   const { authRequest } = useAuth();
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isPublic, setIsPublic] = useState(Number(item.is_public) === 1);
+  const [consent, setConsent] = useState(false);
+  const [changing, setChanging] = useState(false);
+  useEffect(() => { setIsPublic(Number(item.is_public) === 1); setConsent(false); }, [item.id, item.is_public]);
+  async function changeVisibility() {
+    if (changing || (!isPublic && !consent)) return;
+    setChanging(true); setError('');
+    try {
+      const data = await authRequest(`/api/videos/${item.id}/visibility`, {method:'POST', body:{isPublic:!isPublic}});
+      setIsPublic(data.isPublic); setConsent(false);
+    } catch(e) { setError(e.message); } finally { setChanging(false); }
+  }
   const source = useRef('');
   const request = useRef(0);
   const pending = useRef(false);
@@ -45,6 +58,9 @@ export default function SavedVideo({ item }) {
       ? <video src={url} controls autoPlay playsInline aria-label={`${item.place_name}の保存動画`}
           onError={() => setError('この動画を再生できません。別のブラウザーでも確認してください。')} />
       : <button type="button" onClick={play} disabled={loading}>{loading ? '読込中…' : '▶ 動画を再生'}</button>}
+    {item.spot_id && <div className="spot-visibility"><p>スポット：{item.spot_name} · {isPublic ? '公開中' : '自分だけ'}</p>
+      {!isPublic && <label><input type="checkbox" checked={consent} disabled={changing} onChange={e=>setConsent(e.target.checked)} />このスポットで誰でも再生・保存できる状態にすることを許可する</label>}
+      <button type="button" disabled={changing || (!isPublic && !consent)} onClick={changeVisibility}>{changing ? '変更中…' : isPublic ? '公開を取り消す' : '許可して公開する'}</button></div>}
     {error && <p role="alert">{error}</p>}
   </article>;
 }

@@ -28,12 +28,24 @@ export function videoRoutes(app, db, authenticate) {
     if (!validId(req.params.tripId)) return res.sendStatus(400);
     const [trips] = await db.execute('SELECT id FROM trips WHERE id = ? AND owner_id = ?', [req.params.tripId, req.user.id]);
     if (!trips.length) return res.status(404).json({ error: '旅行が見つかりません。' });
-    const [videos] = await db.execute('SELECT v.id, v.captured_at, v.byte_size, v.mime_type, p.name AS place_name FROM trip_videos v JOIN trip_places p ON p.id = v.trip_place_id WHERE p.trip_id = ? ORDER BY v.captured_at, v.id LIMIT 20', [req.params.tripId]);
+    const [videos] = await db.execute('SELECT v.id, v.captured_at, v.byte_size, v.mime_type, p.name AS place_name, p.latitude, p.longitude, vs.spot_id, COALESCE(vs.is_public, FALSE) AS is_public, s.name AS spot_name FROM trip_videos v JOIN trip_places p ON p.id = v.trip_place_id LEFT JOIN video_spots vs ON vs.video_id = v.id LEFT JOIN spots s ON s.id = vs.spot_id WHERE p.trip_id = ? ORDER BY v.captured_at, v.id LIMIT 20', [req.params.tripId]);
     res.json({ videos });
   });
   app.post('/api/trips/:tripId/videos', authenticate, express.raw({ type: ['video/webm', 'video/mp4'], limit: MAX_VIDEO_BYTES }), async (req, res) => {
     const type = (req.headers['content-type'] || '').split(';')[0];
     const { uploadId, place = '場所未設定', capturedAt } = req.query;
+    const { latitude, longitude } = req.query;
+    const { spotId, publish } = req.query;
+    if ((spotId !== undefined && (typeof spotId !== 'string' || !validId(spotId)))
+      || (publish !== undefined && !['true','false'].includes(publish)) || (publish === 'true' && !spotId)) {
+      return res.status(400).json({ error: '公開するにはスポットを選び、公開を許可してください。' });
+    }
+    const hasLocation = latitude !== undefined || longitude !== undefined;
+    if (hasLocation && (typeof latitude !== 'string' || typeof longitude !== 'string'
+      || !latitude.trim() || !longitude.trim() || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))
+      || Math.abs(Number(latitude)) > 90 || Math.abs(Number(longitude)) > 180)) {
+      return res.status(400).json({ error: '位置情報が正しくありません。現在地を取得し直してください。' });
+    }
     if (!validId(req.params.tripId) || typeof uploadId !== 'string' || !/^[a-f0-9-]{36}$/.test(uploadId)
       || typeof place !== 'string' || !place.trim() || [...place.trim()].length > 100
       || typeof capturedAt !== 'string' || !Number.isFinite(Date.parse(capturedAt))
@@ -56,10 +68,17 @@ export function videoRoutes(app, db, authenticate) {
         const [result] = await connection.execute('INSERT INTO trip_places (trip_id, name) VALUES (?, ?)', [req.params.tripId, place.trim()]);
         placeId = result.insertId;
       }
+      // A named place keeps its first coordinates; later clips must not move its map pin.
+      if (hasLocation) await connection.execute('UPDATE trip_places SET latitude = ?, longitude = ? WHERE id = ? AND latitude IS NULL AND longitude IS NULL', [Number(latitude), Number(longitude), placeId]);
       const [result] = await connection.execute('INSERT INTO trip_videos (trip_place_id, upload_id, captured_at, mime_type, byte_size, video_data) VALUES (?, ?, ?, ?, ?, ?)', [placeId, uploadId, new Date(capturedAt), type, req.body.length, req.body]);
+      if (spotId) {
+        const [spots] = await connection.execute('SELECT id FROM spots WHERE id = ?', [spotId]);
+        if (!spots.length) { await connection.rollback(); return res.status(400).json({error:'スポットを検索し直してください。'}); }
+        await connection.execute('INSERT INTO video_spots (video_id, spot_id, is_public, consent_at) VALUES (?, ?, ?, ?)', [result.insertId, spotId, publish === 'true', publish === 'true' ? new Date() : null]);
+      }
       await connection.commit();
       res.status(201).json({ id: String(result.insertId) });
-    } catch (error) { await connection.rollback(); throw error; }
+    } catch (error) { try { await connection.rollback(); } catch { connection.destroy?.(); } throw error; }
     finally { connection.release(); }
   });
   app.get('/api/videos/:videoId/content', authenticate, async (req, res) => {

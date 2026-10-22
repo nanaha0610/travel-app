@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 
 // Mounted only for the selected clip. Leaving a clip releases its media URL.
-export default function FeedPlayer({ item }) {
+export default function FeedPlayer({ item, onEnded }) {
   const { authRequest } = useAuth();
   const player = useRef(null);
   const [url, setUrl] = useState('');
@@ -43,7 +43,7 @@ export default function FeedPlayer({ item }) {
 
   return <div className="feed-player">
     {!url && !error && <p role="status">動画を読み込んでいます…</p>}
-    {url && <video ref={player} src={url} controls loop muted playsInline preload="auto"
+    {url && <video ref={player} src={url} controls loop={!onEnded} onEnded={onEnded} muted playsInline preload="auto"
       aria-label={`${item.trip_title}・${item.place_name}の動画`}
       onError={() => setError('この動画を再生できません。撮影時と同じブラウザーでも確認してください。')} />}
     {needsPlay && !error && <button type="button" className="feed-resume" onClick={resume}>▶ 再生する</button>}
