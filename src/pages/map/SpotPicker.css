@@ -1,0 +1,13 @@
+.spot-picker { margin:20px 0; padding:20px; border:1px solid #c9d9ce; border-radius:16px; background:#f4f8f1; }
+.spot-picker form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:12px 0; }
+.spot-picker label { flex:1; min-width:180px; display:grid; gap:6px; }
+.spot-picker input { min-height:44px; padding:10px; border:1px solid #9bad9e; border-radius:8px; font:inherit; }
+.spot-picker button, .spot-visibility button { min-height:44px; border:1px solid #8aa494; background:white; color:#203c35; border-radius:10px; padding:10px 14px; font:inherit; cursor:pointer; }
+.spot-candidates { display:grid; gap:8px; margin:16px 0; }
+.spot-candidates button { display:grid; text-align:left; gap:6px; }
+.spot-candidates small { color:#52685d; overflow-wrap:anywhere; }
+.spot-candidates button[aria-pressed="true"] { border:2px solid #285e43; background:#e1efe3; }
+.spot-consent { padding:16px; border:1px solid #c7d5c9; border-radius:12px; background:#fff; margin:12px 0; }
+.spot-consent label { display:flex; align-items:start; gap:10px; }
+.spot-consent input { margin-top:5px; }
+.spot-consent p, .spot-visibility p { font-size:13px; color:#52685d; }

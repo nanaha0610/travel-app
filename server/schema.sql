@@ -56,3 +56,24 @@ CREATE TABLE IF NOT EXISTS trip_videos (
   CHECK (byte_size > 0 AND byte_size <= 2097152),
   FOREIGN KEY (trip_place_id) REFERENCES trip_places(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS spots (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  osm_type ENUM('node','way','relation') NOT NULL,
+  osm_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  label VARCHAR(500) NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  UNIQUE KEY osm_identity (osm_type, osm_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS video_spots (
+  video_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+  spot_id BIGINT UNSIGNED NOT NULL,
+  is_public BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_at DATETIME NULL,
+  INDEX spot_public (spot_id, is_public, video_id),
+  FOREIGN KEY (video_id) REFERENCES trip_videos(id) ON DELETE CASCADE,
+  FOREIGN KEY (spot_id) REFERENCES spots(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
