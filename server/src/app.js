@@ -1,4 +1,5 @@
 import express from 'express';
+import { routeSpotRoutes } from './route-spots.js';
 import { rateLimit } from 'express-rate-limit';
 import { randomBytes } from 'node:crypto';
 import { tripSharingRoutes } from './trip-sharing.js';
@@ -31,6 +32,8 @@ export function createApp(db, { origins = [], trustProxy = false } = {}) {
   app.use('/api/auth/register', limiter);
   app.use('/api/auth/login', limiter);
   app.use(express.json({ limit: '16kb' }));
+
+  routeSpotRoutes(app);
 
   app.get('/api/health', async (_req, res) => { await db.execute('SELECT 1'); res.json({ status: 'ok', database: 'connected' }); });
 
