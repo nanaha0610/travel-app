@@ -4,10 +4,10 @@
 //   利用の目安 https://dev.overpass-api.de/overpass-doc/en/preface/commons.html
 //   ・1日1万回・1GB程度まで ・大量に使わない
 //   ・データは OpenStreetMap（ODbL）なので出典を表示する
-import { MapServiceError, fetchJson, waitForTurn } from './routeServices.js';
+import { MapServiceError, waitForTurn } from './routeServices.js';
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const MAX_RESULTS = 300; // 地図が見えなくならないよう最大50件
+const MAX_RESULTS = 50; // 地図が見えなくならないよう最大50件
 
 // 移動手段ごとの設定
 const searchSettings = {
@@ -16,18 +16,11 @@ const searchSettings = {
 };
 const MAX_POINTS = 200; // サーバーに送るルートの点の数の上限
 
-export const spotCategories = [
-  { id: 'all', label: 'すべて' }, { id: 'food', label: '飲食店' },
-  { id: 'tourism', label: '観光・文化' }, { id: 'nature', label: '自然・公園' },
-  { id: 'shopping', label: '買い物' },
-];
-export function classifySpot(tags) {
-  if (['restaurant','cafe','fast_food','bar','pub','food_court','ice_cream'].includes(tags.amenity)) return { category: 'food', kind: '飲食店' };
-  if (tags.amenity === 'place_of_worship') return { category: 'tourism', kind: '神社・寺院・礼拝所' };
-  if (tags.shop) return { category: 'shopping', kind: '買い物' };
-  if (tags.leisure || tags.natural) return { category: 'nature', kind: '自然・公園' };
-  return { category: 'tourism', kind: tags.historic ? '史跡' : '観光・文化' };
-}
+const kindLabels = {
+  restaurant: 'レストラン',
+  cafe: 'カフェ',
+  fast_food: 'ファストフード',
+};
 
 // よく使われる料理ジャンルだけ日本語にする（それ以外は登録された文字のまま）
 const cuisineLabels = {
@@ -104,7 +97,7 @@ function toRestaurant(element) {
     name,
     lat,
     lng,
-    ...classifySpot(tags),
+    kind: kindLabels[tags.amenity] ?? '飲食店',
     cuisine,
     openingHours: tags.opening_hours ?? '',
     address: buildAddress(tags),
@@ -117,44 +110,49 @@ function toRestaurant(element) {
 const restaurantCache = new Map(); // 同じルートで何度も問い合わせないための保存場所
 
 // path はルートの点の並び [[緯度, 経度], ...]、routeMeters はルートの長さ
-export async function fetchRestaurantsAlongRoute(path, routeMeters, mode) {
+export async function fetchRestaurantsAlongRoute(path, routeMeters, mode, radius = 300) {
+  if (![100, 300, 500].includes(radius)) throw new MapServiceError('検索範囲が正しくありません。');
   const settings = searchSettings[mode];
   if (routeMeters > settings.maxRouteMeters) {
     throw new MapServiceError(
-      `ルートが長いため、スポットは表示していません（${mode === 'foot' ? '徒歩は10km' : '車は40km'}まで）。`,
+      `ルートが長いため、飲食店は表示していません（${mode === 'foot' ? '徒歩は10km' : '車は40km'}まで）。`,
     );
   }
 
   const points = thinOutPath(path, routeMeters, settings.stepMeters);
   const pointText = points.map(([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`).join(',');
-  const cacheKey = `${mode}:${pointText}`;
+  const cacheKey = `${mode}:${radius}:${pointText}`;
   if (restaurantCache.has(cacheKey)) return restaurantCache.get(cacheKey);
 
   // ルートの線から radius メートル以内のレストラン・カフェ・ファストフードを探す
   const query = `[out:json][timeout:25];
-(
-nwr["amenity"~"^(restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|place_of_worship)$"](around:${settings.radius},${pointText});
-nwr["tourism"~"^(attraction|museum|gallery|viewpoint|zoo|aquarium|artwork|theme_park)$"](around:${settings.radius},${pointText});
-nwr["historic"](around:${settings.radius},${pointText});
-nwr["leisure"~"^(park|garden|nature_reserve)$"](around:${settings.radius},${pointText});
-nwr["natural"~"^(peak|beach|spring|waterfall)$"](around:${settings.radius},${pointText});
-nwr["shop"](around:${settings.radius},${pointText});
-);
+nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:${radius},${pointText});
 out center ${MAX_RESULTS * 2};`;
 
   await waitForTurn('restaurants');
-  const data = await fetchJson(OVERPASS_URL, {
+  let response;
+  try {
+    response = await fetch(OVERPASS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(30000),
-  });
+    signal: AbortSignal.timeout(35000),
+    });
+  } catch (error) {
+    throw new MapServiceError(error.name === 'TimeoutError' || error.name === 'AbortError'
+      ? '飲食店検索が時間切れになりました。少し待って再検索してください。'
+      : '飲食店の取得先と通信できませんでした。ルートは利用できます。');
+  }
+  if (!response.ok) throw new MapServiceError(`飲食店の取得先がエラーを返しました（HTTP ${response.status}）。少し待って再検索してください。`);
+  let data;
+  try { data = await response.json(); } catch { throw new MapServiceError('飲食店の取得先から正しい応答が返りませんでした。'); }
+  if (data.remark || !Array.isArray(data.elements)) throw new MapServiceError('飲食店検索が外部サービス側で完了しませんでした。0件とは限りません。再検索してください。');
 
   const restaurants = (data.elements ?? [])
     .map(toRestaurant)
     .filter(Boolean)
     .slice(0, MAX_RESULTS);
   if (restaurantCache.size >= 10) restaurantCache.delete(restaurantCache.keys().next().value);
-  restaurantCache.set(cacheKey, restaurants);
+  if (restaurants.length) restaurantCache.set(cacheKey, restaurants);
   return restaurants;
 }

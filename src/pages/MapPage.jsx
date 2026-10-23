@@ -14,7 +14,7 @@ import {
 import PlaceSearch from './map/PlaceSearch.jsx';
 import RecordedPlaces from './map/RecordedPlaces.jsx';
 import PublicSpots from './map/PublicSpots.jsx';
-import { fetchRestaurantsAlongRoute, spotCategories } from './map/restaurantService.js';
+import { fetchRestaurantsAlongRoute } from './map/restaurantService.js';
 import './MapPage.css';
 
 // 動作確認用の仮のサンプルスポットです。
@@ -153,6 +153,10 @@ export default function MapPage() {
   const locationLayerRef = useRef(null); // 現在地の点と誤差の円
   const routeLayerRef = useRef(null); // ルートの線と出発地・目的地のピン
   const restaurantLayerRef = useRef(null); // ルート沿いの飲食店のピン
+  const lastRouteRef = useRef(null);
+  const restaurantRequestRef = useRef(0);
+  const radiusRef = useRef(300);
+  const [searchRadius, setSearchRadius] = useState(300);
   const routeRequestRef = useRef(0); // 古いルート結果で上書きしないための番号
 
   const [location, setLocation] = useState({ status: 'idle', message: '' });
@@ -163,8 +167,6 @@ export default function MapPage() {
   const [route, setRoute] = useState({ status: 'idle', message: '', summary: null });
   const [restaurants, setRestaurants] = useState({ status: 'idle', message: '', count: 0 });
   const [showRestaurants, setShowRestaurants] = useState(true);
-  const [spotCategory, setSpotCategory] = useState('all');
-  const [nearbySpots, setNearbySpots] = useState([]);
 
   useEffect(() => {
     // 地図を作成
@@ -255,7 +257,9 @@ export default function MapPage() {
   // 出発地から目的地までのルートを出す
   // start が null のときは現在地から、場所が入っていればその場所から
   async function showRoute(place, travelMode, start) {
-    setNearbySpots([]);
+    lastRouteRef.current = null;
+    restaurantRequestRef.current += 1;
+    restaurantLayerRef.current?.clearLayers();
     setRestaurants({ status: 'idle', message: '', count: 0 });
     const requestId = ++routeRequestRef.current;
     const isLatest = () => requestId === routeRequestRef.current && mapRef.current;
@@ -306,6 +310,7 @@ export default function MapPage() {
         summary: `${modeLabel} ${formatDistance(result.distance)}・${formatDuration(result.duration)}`,
       });
 
+      lastRouteRef.current = { result, travelMode, isLatest };
       await showRestaurantsAlongRoute(result, travelMode, isLatest);
     } catch (error) {
       if (!isLatest()) return;
@@ -314,29 +319,16 @@ export default function MapPage() {
   }
 
   // ルート沿いの飲食店にピンを立てる
-  async function showRestaurantsAlongRoute(result, travelMode, isLatest) {
+  async function showRestaurantsAlongRoute(result, travelMode, routeIsLatest) {
+    const id = ++restaurantRequestRef.current;
+    const isLatest = () => id === restaurantRequestRef.current && routeIsLatest();
     restaurantLayerRef.current?.clearLayers();
-    setRestaurants({ status: 'loading', message: 'ルート周辺のスポットを探しています…', count: 0 });
+    setRestaurants({ status: 'loading', message: '近くの飲食店を探しています…', count: 0 });
     try {
-      const found = await fetchRestaurantsAlongRoute(result.path, result.distance, travelMode);
+      const found = await fetchRestaurantsAlongRoute(result.path, result.distance, travelMode, radiusRef.current);
       if (!isLatest()) return;
-      setNearbySpots(found);
-      setRestaurants({
-        status: 'success',
-        message: found.length ? '' : 'ルートの近くにスポットの登録が見つかりませんでした。',
-        count: found.length,
-      });
-    } catch (error) {
-      if (!isLatest()) return;
-      setRestaurants({ status: 'error', message: '周辺スポットを取得できませんでした。外部サービスの混雑や通信の影響が考えられます。ルートは利用できます。', count: 0 });
-    }
-  }
-
-  useEffect(() => {
-    if (!restaurantLayerRef.current) return;
-    restaurantLayerRef.current.clearLayers();
       const layer = restaurantLayerRef.current;
-      nearbySpots.filter(spot => spotCategory === 'all' || spot.category === spotCategory).forEach((restaurant) => {
+      found.forEach((restaurant) => {
         L.circleMarker([restaurant.lat, restaurant.lng], {
           radius: 9,
           color: '#ffffff',
@@ -348,7 +340,16 @@ export default function MapPage() {
           .bindTooltip(textElement(restaurant.name), { direction: 'top', offset: [0, -8] })
           .addTo(layer);
       });
-  }, [nearbySpots, spotCategory]);
+      setRestaurants({
+        status: 'success',
+        message: found.length ? '' : `ルートから${radiusRef.current}m以内に対象の飲食店が見つかりませんでした。検索範囲を広げてお試しください。`,
+        count: found.length,
+      });
+    } catch (error) {
+      if (!isLatest()) return;
+      setRestaurants({ status: 'error', message: errorText(error), count: 0 });
+    }
+  }
 
   // 飲食店のピンの表示／非表示
   function toggleRestaurants() {
@@ -365,7 +366,8 @@ export default function MapPage() {
 
   // 出発地がまだ決まっていないときの表示
   function askForOrigin() {
-    setNearbySpots([]);
+    lastRouteRef.current = null;
+    restaurantRequestRef.current += 1;
     routeRequestRef.current += 1;
     routeLayerRef.current?.clearLayers();
     restaurantLayerRef.current?.clearLayers();
@@ -406,7 +408,8 @@ export default function MapPage() {
   }
 
   function clearRoute() {
-    setNearbySpots([]);
+    lastRouteRef.current = null;
+    restaurantRequestRef.current += 1;
     routeRequestRef.current += 1; // 途中のルート検索結果を無視する
     routeLayerRef.current?.clearLayers();
     restaurantLayerRef.current?.clearLayers();
@@ -489,7 +492,7 @@ export default function MapPage() {
               {restaurants.status === 'success' && restaurants.count > 0 && (
                 <>
                   <span className="restaurant-count">
-                    <span className="restaurant-dot" aria-hidden="true" />スポット {nearbySpots.filter(spot => spotCategory === 'all' || spot.category === spotCategory).length}件
+                    <span className="restaurant-dot" aria-hidden="true" />飲食店 {restaurants.count}件
                   </span>
                   <button type="button" className="text-button" onClick={toggleRestaurants} aria-pressed={showRestaurants}>
                     {showRestaurants ? '非表示にする' : '表示する'}
@@ -505,14 +508,14 @@ export default function MapPage() {
         </div>
       )}
 
-      <div className="route-field">
-        <h2 className="route-field-title">ルート周辺のスポット</h2>
-        <div className="mode-switch" role="group" aria-label="スポットの種類" style={{ flexWrap: 'wrap' }}>
-          {spotCategories.map(category => <button key={category.id} aria-pressed={spotCategory === category.id} onClick={() => setSpotCategory(category.id)}>{category.label}</button>)}
-        </div>
-        <p>地図に登録された名前のある場所を最大300件表示します。徒歩は道から約100m、車は約300m以内が対象です。すべての施設を網羅するものではありません。</p>
-        {restaurants.status === 'success' && !nearbySpots.some(spot => spotCategory === 'all' || spot.category === spotCategory) && <p role="status">この種類のスポットは検索結果にありません。</p>}
-      </div>
+      <section className="route-field" aria-label="飲食店検索">
+        <label htmlFor="restaurant-radius">ルートからの飲食店検索範囲 </label>
+        <select id="restaurant-radius" value={searchRadius} disabled={restaurants.status === 'loading'} onChange={event => { const radius = Number(event.target.value); setSearchRadius(radius); radiusRef.current = radius; const last = lastRouteRef.current; if (last) showRestaurantsAlongRoute(last.result, last.travelMode, last.isLatest); }}>
+          <option value={100}>100m以内</option><option value={300}>300m以内</option><option value={500}>500m以内</option>
+        </select>
+        <button type="button" disabled={!lastRouteRef.current || restaurants.status === 'loading'} onClick={() => { const last = lastRouteRef.current; showRestaurantsAlongRoute(last.result, last.travelMode, last.isLatest); }}>飲食店を再検索</button>
+        <p>OpenStreetMapに登録されたレストラン・カフェ・ファストフードが対象です。すべてのお店が登録されているとは限りません。</p>
+      </section>
       <div className="map-toolbar">
         <button
           type="button"
@@ -534,7 +537,7 @@ export default function MapPage() {
       <p className="map-credits">
         場所の検索：<a href="https://nominatim.org/" target="_blank" rel="noreferrer">Nominatim</a>
         ／ 経路：<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noreferrer">FOSSGIS（OSRM）</a>
-        ／ スポット情報：<a href="https://overpass-api.de/" target="_blank" rel="noreferrer">Overpass API</a>
+        ／ 店舗情報：<a href="https://overpass-api.de/" target="_blank" rel="noreferrer">Overpass API</a>
         ／ 地図データ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
         ／ <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">地図の誤りを報告</a>
       </p>

@@ -1,19 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifySpot, fetchRestaurantsAlongRoute } from '../src/pages/map/restaurantService.js';
-test('スポットを種類別に分類する', () => {
-  for (const [tags, category] of [[{amenity:'cafe'},'food'],[{amenity:'place_of_worship'},'tourism'],[{tourism:'museum'},'tourism'],[{leisure:'park'},'nature'],[{shop:'convenience'},'shopping']]) assert.equal(classifySpot(tags).category,category);
-});
-test('各種スポットを検索し名前や位置がない結果を除外する', async () => {
-  const original = globalThis.fetch;
-  globalThis.fetch = async (url, options) => {
-    const query = options.body.get('data');
-    for(const key of ['tourism','historic','leisure','natural','shop','place_of_worship']) assert.ok(query.includes(key));
-    return {ok:true,json:async()=>({elements:[{type:'node',id:1,lat:35,lon:139,tags:{name:'公園',leisure:'park'}},{type:'node',id:2,lat:35,lon:139,tags:{}}]})};
+import { fetchRestaurantsAlongRoute } from '../src/pages/map/restaurantService.js';
+test('飲食店検索の範囲・空結果・外部エラーを区別する', async () => {
+ const original=globalThis.fetch;
+ const path=[[35,139],[35.001,139]];
+ try {
+  globalThis.fetch=async(_url,options)=>{
+   const q=options.body.get('data');
+   assert.ok(q.includes('around:300,')); assert.ok(!q.includes('tourism'));
+   return {ok:true,json:async()=>({elements:[{type:'node',id:1,lat:35,lon:139,tags:{name:'店',amenity:'restaurant'}},{type:'node',id:2,lat:35,lon:139,tags:{}}]})};
   };
-  try {
-    const result = await fetchRestaurantsAlongRoute([[35,139],[35.001,139]],100,'foot');
-    assert.equal(result.length,1);
-    assert.equal(result[0].category,'nature');
-  } finally {globalThis.fetch=original;}
+  assert.equal((await fetchRestaurantsAlongRoute(path,110,'foot',300)).length,1);
+  globalThis.fetch=async()=>({ok:true,json:async()=>({elements:[],remark:'runtime error: timeout'})});
+  await assert.rejects(()=>fetchRestaurantsAlongRoute(path,110,'foot',500),/完了しませんでした/);
+  globalThis.fetch=async()=>({ok:true,json:async()=>({elements:[]})});
+  assert.deepEqual(await fetchRestaurantsAlongRoute(path,110,'foot',500),[]);
+  globalThis.fetch=async()=>({ok:false,status:429});
+  await assert.rejects(()=>fetchRestaurantsAlongRoute(path,110,'foot',500),/HTTP 429/);
+  await assert.rejects(()=>fetchRestaurantsAlongRoute(path,110,'foot',10000),/検索範囲/);
+ } finally {globalThis.fetch=original;}
 });
