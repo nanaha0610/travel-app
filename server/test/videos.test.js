@@ -6,12 +6,13 @@ import { videoRoutes, MAX_VIDEO_BYTES } from '../src/videos.js';
 
 const video = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0]);
 async function fixture(run) {
-  const state = { count: 0, saved: new Map(), inserts: 0, failInsert: false, rollbacks: 0, locations: [] };
+  const state = { count: 0, saved: new Map(), inserts: 0, failInsert: false, rollbacks: 0, locations: [], visibilityResets: 0 };
   const db = {
     getConnection: async () => db, beginTransaction: async () => {}, commit: async () => {},
     rollback: async () => { state.rollbacks++; }, release() {},
     async execute(sql, args) {
       if (sql.startsWith('SELECT id FROM trips')) return [args[0] === '1' && args[1] === 'owner' ? [{ id: 1 }] : []];
+      if (sql.startsWith("UPDATE trips SET status = 'draft'")) { state.visibilityResets++; return [{affectedRows:1}]; }
       if (sql.startsWith('SELECT COUNT')) return [[{ count: state.count }]];
       if (sql.startsWith('SELECT v.id FROM')) return [state.saved.has(args[1]) ? [{ id: state.saved.get(args[1]) }] : []];
       if (sql.startsWith('SELECT id FROM trip_places')) return [[{ id: 10 }]];
@@ -47,6 +48,7 @@ test('video ownership, save, idempotent retries and 20-video limit', async () =>
   assert.equal((await upload({ id })).status, 201);
   assert.equal((await upload({ id })).status, 200);
   assert.equal(state.inserts, 1);
+  assert.equal(state.visibilityResets, 1);
   const own = await fetch(`${base}/videos/1/content`, { headers: { Authorization: 'owner' } });
   assert.equal(own.status, 200);
   assert.deepEqual(Buffer.from(await own.arrayBuffer()), video);

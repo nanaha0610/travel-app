@@ -54,11 +54,12 @@ export default function SavedVideo({ item }) {
   return <article className="trip-video-card">
     <time dateTime={item.captured_at}>{new Date(item.captured_at).toLocaleString('ja-JP')}</time>
     <strong>{item.place_name}</strong>
+    <p className="status-note">旅行全体の公開設定は上の旅行設定で確認できます。</p>
     {url
       ? <video src={url} controls autoPlay playsInline aria-label={`${item.place_name}の保存動画`}
           onError={() => setError('この動画を再生できません。別のブラウザーでも確認してください。')} />
       : <button type="button" onClick={play} disabled={loading}>{loading ? '読込中…' : '▶ 動画を再生'}</button>}
-    {item.spot_id && <div className="spot-visibility"><p>スポット：{item.spot_name} · {isPublic ? '公開中' : '自分だけ'}</p>
+    {item.spot_id && <div className="spot-visibility"><p>スポット：{item.spot_name} · {isPublic ? 'スポット公開中' : 'スポット公開なし'}</p>
       {!isPublic && <label><input type="checkbox" checked={consent} disabled={changing} onChange={e=>setConsent(e.target.checked)} />このスポットで誰でも再生・保存できる状態にすることを許可する</label>}
       <button type="button" disabled={changing || (!isPublic && !consent)} onClick={changeVisibility}>{changing ? '変更中…' : isPublic ? '公開を取り消す' : '許可して公開する'}</button></div>}
     {error && <p role="alert">{error}</p>}

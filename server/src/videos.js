@@ -76,6 +76,8 @@ export function videoRoutes(app, db, authenticate) {
         if (!spots.length) { await connection.rollback(); return res.status(400).json({error:'スポットを検索し直してください。'}); }
         await connection.execute('INSERT INTO video_spots (video_id, spot_id, is_public, consent_at) VALUES (?, ?, ?, ?)', [result.insertId, spotId, publish === 'true', publish === 'true' ? new Date() : null]);
       }
+      // New clips require fresh consent before the whole trip is public again.
+      await connection.execute("UPDATE trips SET status = 'draft' WHERE id = ?", [req.params.tripId]);
       await connection.commit();
       res.status(201).json({ id: String(result.insertId) });
     } catch (error) { try { await connection.rollback(); } catch { connection.destroy?.(); } throw error; }
