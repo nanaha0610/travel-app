@@ -153,6 +153,7 @@ export default function MapPage() {
   const locationLayerRef = useRef(null); // 現在地の点と誤差の円
   const routeLayerRef = useRef(null); // ルートの線と出発地・目的地のピン
   const restaurantLayerRef = useRef(null); // ルート沿いの飲食店のピン
+  const lastRouteRef = useRef(null);
   const routeRequestRef = useRef(0); // 古いルート結果で上書きしないための番号
 
   const [location, setLocation] = useState({ status: 'idle', message: '' });
@@ -255,6 +256,7 @@ export default function MapPage() {
   // 出発地から目的地までのルートを出す
   // start が null のときは現在地から、場所が入っていればその場所から
   async function showRoute(place, travelMode, start) {
+    lastRouteRef.current = null;
     setNearbySpots([]);
     setRestaurants({ status: 'idle', message: '', count: 0 });
     const requestId = ++routeRequestRef.current;
@@ -306,6 +308,7 @@ export default function MapPage() {
         summary: `${modeLabel} ${formatDistance(result.distance)}・${formatDuration(result.duration)}`,
       });
 
+      lastRouteRef.current = { result, travelMode, isLatest };
       await showRestaurantsAlongRoute(result, travelMode, isLatest);
     } catch (error) {
       if (!isLatest()) return;
@@ -328,7 +331,7 @@ export default function MapPage() {
       });
     } catch (error) {
       if (!isLatest()) return;
-      setRestaurants({ status: 'error', message: '周辺スポットを取得できませんでした。外部サービスの混雑や通信の影響が考えられます。ルートは利用できます。', count: 0 });
+      setRestaurants({ status: 'error', message: errorText(error), count: 0 });
     }
   }
 
@@ -365,6 +368,7 @@ export default function MapPage() {
 
   // 出発地がまだ決まっていないときの表示
   function askForOrigin() {
+    lastRouteRef.current = null;
     setNearbySpots([]);
     routeRequestRef.current += 1;
     routeLayerRef.current?.clearLayers();
@@ -406,6 +410,7 @@ export default function MapPage() {
   }
 
   function clearRoute() {
+    lastRouteRef.current = null;
     setNearbySpots([]);
     routeRequestRef.current += 1; // 途中のルート検索結果を無視する
     routeLayerRef.current?.clearLayers();
@@ -497,6 +502,7 @@ export default function MapPage() {
                 </>
               )}
               {restaurants.message && <span>{restaurants.message}</span>}
+              {restaurants.status === 'error' && lastRouteRef.current && <button type="button" onClick={() => { const last = lastRouteRef.current; showRestaurantsAlongRoute(last.result, last.travelMode, last.isLatest); }}>スポット検索を再試行</button>}
             </div>
           )}
           {destination && (
