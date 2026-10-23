@@ -4,7 +4,7 @@
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
 
-export const isApiConfigured = API_BASE !== '';
+export const isApiConfigured = API_BASE !== '' || import.meta.env.PROD;
 
 export class ApiError extends Error {
   constructor(message, status) {
