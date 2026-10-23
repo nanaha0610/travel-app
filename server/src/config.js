@@ -7,7 +7,7 @@ export function databaseConfig() {
   const useTLS = process.env.DB_SSL === 'true';
   if (process.env.NODE_ENV === 'production' && !useTLS) throw new Error('Production requires DB_SSL=true');
   return {
-    ...(useTLS ? { ssl: { rejectUnauthorized: true, ...(process.env.DB_CA_FILE ? { ca: readFileSync(process.env.DB_CA_FILE, 'utf8') } : {}) } } : {}),
+    ...(useTLS ? { ssl: { rejectUnauthorized: true, ...(process.env.DB_CA_PEM ? { ca: process.env.DB_CA_PEM.replace(/\\n/g, '\n') } : process.env.DB_CA_FILE ? { ca: readFileSync(process.env.DB_CA_FILE, 'utf8') } : {}) } } : {}),
     timezone: 'Z',
     host: process.env.DB_HOST || '127.0.0.1',
     port: Number(process.env.DB_PORT || 3306),
