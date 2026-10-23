@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { apiRequest } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 
 // Mounted only for the selected clip. Leaving a clip releases its media URL.
-export default function FeedPlayer({ item, onEnded }) {
+export default function FeedPlayer({ item, onEnded, publicTripId }) {
   const { authRequest } = useAuth();
   const player = useRef(null);
   const [url, setUrl] = useState('');
@@ -14,13 +15,15 @@ export default function FeedPlayer({ item, onEnded }) {
     let active = true;
     let objectUrl = '';
     setUrl(''); setError(''); setNeedsPlay(false);
-    authRequest(`/api/videos/${item.id}/content`, { responseType: 'blob' }).then(blob => {
+    const request = publicTripId ? apiRequest : authRequest;
+    const path = publicTripId ? `/api/public/trips/${publicTripId}/videos/${item.id}/content` : `/api/videos/${item.id}/content`;
+    request(path, { responseType: 'blob' }).then(blob => {
       if (!active) return;
       objectUrl = URL.createObjectURL(blob);
       setUrl(objectUrl);
     }).catch(e => { if (active) setError(e.message); });
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [item.id, authRequest, retry]);
+  }, [item.id, publicTripId, authRequest, retry]);
 
   useEffect(() => {
     const video = player.current;

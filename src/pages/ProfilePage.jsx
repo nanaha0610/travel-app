@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import PageShell from '../components/PageShell.jsx';
 import LoginPanel from '../components/LoginPanel.jsx';
+import TripVisibility from '../components/TripVisibility.jsx';
 import TripVideos from '../components/TripVideos.jsx';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { isApiConfigured } from '../api/client.js';
 import './ProfilePage.css';
 
-const statusLabels = { draft: '下書き', published: '公開中' };
+const statusLabels = { draft: '自分だけ', published: '公開中' };
 
 function formatDate(value) {
   const date = new Date(value);
@@ -69,10 +70,11 @@ function NewTripForm({ onCreated }) {
   );
 }
 
-function TripItem({ trip }) {
+function TripItem({ trip, onChanged }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <article className="mypage-trip">
+      <TripVisibility trip={trip} onChanged={onChanged} />
       <header className="mypage-trip-header">
         <h3>{trip.title}</h3>
         <p>
@@ -141,7 +143,7 @@ function ProfileContent() {
 
       <dl className="mypage-stats">
         <div><dt>旅行</dt><dd>{loadState === 'ready' ? trips.length : '–'}</dd></div>
-        <div><dt>下書き</dt><dd>{loadState === 'ready' ? draftCount : '–'}</dd></div>
+        <div><dt>自分だけ</dt><dd>{loadState === 'ready' ? draftCount : '–'}</dd></div>
         <div><dt>公開中</dt><dd>{loadState === 'ready' ? publishedCount : '–'}</dd></div>
       </dl>
 
@@ -175,7 +177,7 @@ function ProfileContent() {
           </div>
         )}
 
-        {loadState === 'ready' && trips.map((trip) => <TripItem key={trip.id} trip={trip} />)}
+        {loadState === 'ready' && trips.map((trip) => <TripItem key={`${trip.id}-${trip.status}`} trip={trip} onChanged={status => setTrips(current => current.map(t => String(t.id) === String(trip.id) ? {...t,status} : t))} />)}
       </section>
     </>
   );

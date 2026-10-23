@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import PageShell from '../components/PageShell.jsx';
 import CameraCapture from './CameraCapture.jsx';
 import SpotPicker from './map/SpotPicker.jsx';
+import TripVisibility from '../components/TripVisibility.jsx';
 import SavedVideo from '../components/SavedVideo.jsx';
 import './CreatePage.css';
 
@@ -91,6 +92,7 @@ function CreateContent() {
       if (location) { params.set('latitude', String(location.latitude)); params.set('longitude', String(location.longitude)); }
       await authRequest(`/api/trips/${tripId}/videos?${params}`, { method: 'POST', rawBody: draft.blob, contentType: draft.blob.type.split(';')[0] });
       // Clear only after the server has committed. Retry keeps the same upload ID.
+      setTrips(current => current.map(t => String(t.id) === tripId ? {...t, status:'draft'} : t));
       setDraft(null); setCameraKey(key => key + 1); setBusy(false); setNotice('この旅行に保存しました。');
       setLocation(null); setLocationNotice(''); setPlace('');
       const data = await authRequest(`/api/trips/${tripId}/videos`); setVideos(data.videos);
@@ -107,6 +109,7 @@ function CreateContent() {
         <form onSubmit={addTrip}><label>新しい旅行名<input name="title" maxLength={100} required disabled={locked} placeholder="例：京都旅行" /></label><button disabled={locked}>旅行を作成</button></form>
       </div>
       {tripId && <>
+        {trips.find(t => String(t.id) === tripId) && <TripVisibility key={tripId} trip={trips.find(t => String(t.id) === tripId)} disabled={locked || loadingVideos || !videos.length} onChanged={status => { setTrips(current => current.map(t => String(t.id) === tripId ? {...t, status} : t)); setReloadKey(n => n + 1); }} />}
         <h2>{trips.find(trip => String(trip.id) === tripId)?.title}の動画（{videos.length}/20本）</h2>
         <label className="trip-day-filter"><input type="checkbox" checked={onlyToday} onChange={e => setOnlyToday(e.target.checked)} />今日の動画だけ表示</label>
         {loadFailed && <button type="button" onClick={() => { setError(''); setReloadKey(key => key + 1); }}>動画一覧を再読み込み</button>}

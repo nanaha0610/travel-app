@@ -1,6 +1,7 @@
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { randomBytes } from 'node:crypto';
+import { tripSharingRoutes } from './trip-sharing.js';
 import { videoRoutes } from './videos.js';
 import { spotRoutes } from './spots.js';
 import { hashPassword, verifyPassword, issueSession, requireAuth } from './auth.js';
@@ -86,6 +87,7 @@ export function createApp(db, { origins = [], trustProxy = false } = {}) {
   });
   videoRoutes(app, db, authenticate);
   spotRoutes(app, db, authenticate);
+  tripSharingRoutes(app, db, authenticate);
   app.use((_req, res) => res.status(404).json({ error: 'API が見つかりません。' }));
   app.use((error, _req, res, _next) => {
     if (error.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON の形式を確認してください。' });

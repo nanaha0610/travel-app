@@ -30,3 +30,9 @@ p { margin: 0; }
 .bottom-nav a:hover { background: #f0f4ed; }
 a:focus-visible { outline: 3px solid #a05c18; outline-offset: 2px; }
 @media (max-width: 380px) { main { padding-left: 16px; padding-right: 16px; } .app-header { padding: 20px 16px; } .bottom-nav { padding-left: 4px; padding-right: 4px; } }
+
+.trip-visibility { margin: 1rem 0; padding: 1rem; border: 1px solid #b9d1c7; border-radius: 14px; background: #f0f6f2; }
+.trip-visibility label { display: flex; align-items: flex-start; gap: .6rem; line-height: 1.7; }
+.trip-visibility input { flex-shrink: 0; margin-top: .4rem; }
+.trip-visibility button { margin: .7rem .6rem .3rem 0; }
+.trip-day-route { padding: 1rem; background: #e9f3ed; border-radius: 12px; line-height: 1.9; overflow-wrap: anywhere; }

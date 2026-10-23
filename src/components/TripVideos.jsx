@@ -32,7 +32,7 @@ export default function TripVideos({ tripId, tripTitle }) {
     groups.get(name).push(video);
   }
   return <section className="trip-videos" aria-label={`${tripTitle}の保存動画`}>
-    <p>保存動画 {result.videos.length}本 · 場所ごとに表示（本人のみ閲覧できます）</p>
+    <p>保存動画 {result.videos.length}本 · 場所ごとに表示（公開範囲は旅行・スポットの設定に従います）</p>
     {[...groups].map(([name, videos]) => <section key={name} className="trip-videos-place" aria-label={name}>
       <h4>{name}（{videos.length}本）</h4>
       <div className="trip-videos-grid">{videos.map(video => <SavedVideo key={video.id} item={video} />)}</div>
