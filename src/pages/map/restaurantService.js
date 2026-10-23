@@ -7,7 +7,7 @@
 import { MapServiceError, fetchJson, waitForTurn } from './routeServices.js';
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const MAX_RESULTS = 300; // 地図が見えなくならないよう最大50件
+const MAX_RESULTS = 50; // 地図が見えなくならないよう最大50件
 
 // 移動手段ごとの設定
 const searchSettings = {
@@ -16,18 +16,11 @@ const searchSettings = {
 };
 const MAX_POINTS = 200; // サーバーに送るルートの点の数の上限
 
-export const spotCategories = [
-  { id: 'all', label: 'すべて' }, { id: 'food', label: '飲食店' },
-  { id: 'tourism', label: '観光・文化' }, { id: 'nature', label: '自然・公園' },
-  { id: 'shopping', label: '買い物' },
-];
-export function classifySpot(tags) {
-  if (['restaurant','cafe','fast_food','bar','pub','food_court','ice_cream'].includes(tags.amenity)) return { category: 'food', kind: '飲食店' };
-  if (tags.amenity === 'place_of_worship') return { category: 'tourism', kind: '神社・寺院・礼拝所' };
-  if (tags.shop) return { category: 'shopping', kind: '買い物' };
-  if (tags.leisure || tags.natural) return { category: 'nature', kind: '自然・公園' };
-  return { category: 'tourism', kind: tags.historic ? '史跡' : '観光・文化' };
-}
+const kindLabels = {
+  restaurant: 'レストラン',
+  cafe: 'カフェ',
+  fast_food: 'ファストフード',
+};
 
 // よく使われる料理ジャンルだけ日本語にする（それ以外は登録された文字のまま）
 const cuisineLabels = {
@@ -104,7 +97,7 @@ function toRestaurant(element) {
     name,
     lat,
     lng,
-    ...classifySpot(tags),
+    kind: kindLabels[tags.amenity] ?? '飲食店',
     cuisine,
     openingHours: tags.opening_hours ?? '',
     address: buildAddress(tags),
@@ -117,11 +110,11 @@ function toRestaurant(element) {
 const restaurantCache = new Map(); // 同じルートで何度も問い合わせないための保存場所
 
 // path はルートの点の並び [[緯度, 経度], ...]、routeMeters はルートの長さ
-export async function fetchSpotsFromProvider(path, routeMeters, mode, request = fetchJson) {
+export async function fetchRestaurantsAlongRoute(path, routeMeters, mode) {
   const settings = searchSettings[mode];
   if (routeMeters > settings.maxRouteMeters) {
     throw new MapServiceError(
-      `ルートが長いため、スポットは表示していません（${mode === 'foot' ? '徒歩は10km' : '車は40km'}まで）。`,
+      `ルートが長いため、飲食店は表示していません（${mode === 'foot' ? '徒歩は10km' : '車は40km'}まで）。`,
     );
   }
 
@@ -131,54 +124,21 @@ export async function fetchSpotsFromProvider(path, routeMeters, mode, request = 
   if (restaurantCache.has(cacheKey)) return restaurantCache.get(cacheKey);
 
   // ルートの線から radius メートル以内のレストラン・カフェ・ファストフードを探す
-  const query = `[out:json][timeout:15];
-(
-nwr["amenity"~"^(restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|place_of_worship)$"](around:${settings.radius},${pointText});
-nwr["tourism"~"^(attraction|museum|gallery|viewpoint|zoo|aquarium|artwork|theme_park)$"](around:${settings.radius},${pointText});
-nwr["historic"](around:${settings.radius},${pointText});
-nwr["leisure"~"^(park|garden|nature_reserve)$"](around:${settings.radius},${pointText});
-nwr["natural"~"^(peak|beach|spring|waterfall)$"](around:${settings.radius},${pointText});
-nwr["shop"](around:${settings.radius},${pointText});
-);
+  const query = `[out:json][timeout:25];
+nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:${settings.radius},${pointText});
 out center ${MAX_RESULTS * 2};`;
 
   await waitForTurn('restaurants');
-  const data = await request(OVERPASS_URL, {
+  const data = await fetchJson(OVERPASS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(30000),
   });
 
-  if (data.remark || !Array.isArray(data.elements)) throw new MapServiceError('スポット検索が時間内に完了しませんでした。もう一度お試しください。');
   const restaurants = (data.elements ?? [])
     .map(toRestaurant)
     .filter(Boolean)
     .slice(0, MAX_RESULTS);
-  if (restaurantCache.size >= 10) restaurantCache.delete(restaurantCache.keys().next().value);
   restaurantCache.set(cacheKey, restaurants);
   return restaurants;
-}
-
-// 公開環境では同一ドメインのAPIから取得し、ブラウザーの外部通信制限を避ける。
-export async function fetchRestaurantsAlongRoute(path, routeMeters, mode) {
-  if (import.meta.env?.PROD || import.meta.env?.VITE_API_BASE_URL) {
-    const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
-    const settings = searchSettings[mode];
-    if (routeMeters > settings.maxRouteMeters) throw new MapServiceError('スポット検索は徒歩10km・車40kmまで対応しています。');
-    const points = thinOutPath(path, routeMeters, settings.stepMeters).slice(0, 202);
-    try {
-      const response = await fetch(`${base}/api/map/route-spots`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: points, routeMeters, mode }), signal: AbortSignal.timeout(55000),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new MapServiceError(data.error || '周辺スポットを取得できませんでした。');
-      return data.spots;
-    } catch (error) {
-      if (error instanceof MapServiceError) throw error;
-      throw new MapServiceError('周辺スポットの通信が完了しませんでした。再試行してください。');
-    }
-  }
-  return fetchSpotsFromProvider(path, routeMeters, mode);
 }
